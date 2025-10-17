@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "CALIBRECUE",
+    "slug": "snack-bfe1b3fc-2732-4782-bcba-f4be5b4f1722",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to mark attendance."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.syed602.snackbfe1b3fc27324782bcbaf4be5b4f1722"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d558fbef-7158-423c-90e3-1f5a144329d4"
+      }
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
+}
