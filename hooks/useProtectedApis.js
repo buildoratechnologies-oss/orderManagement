@@ -89,7 +89,6 @@ const useProtectedApis = () => {
   const handleGetOrdersList = async () => {
     try {
       const storedToken = await AsyncStorage.getItem("token");
-      const userXid = await AsyncStorage.getItem("userXid");
       const CBXID = await AsyncStorage.getItem("CBXID");
       let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/-1`);
       // let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/${userXid}`);

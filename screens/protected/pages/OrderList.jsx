@@ -14,8 +14,8 @@ import DropDownPicker from "react-native-dropdown-picker";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 // import { MaterialIcons, AntDesign, Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import useProtectedApis from "../../../hooks/useProtectedApis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useGetOrdersListQuery } from "../../../redux/api/protectedApiSlice";
 
 export default function OrderListScreen({ navigation }) {
   const [open, setOpen] = useState(false);
@@ -33,10 +33,12 @@ export default function OrderListScreen({ navigation }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [CBXID, setCBXID] = useState(null);
 
   const [loading, setLoading] = useState(false); // <-- loading state
 
-  const { handleGetOrdersList } = useProtectedApis();
+  const { data: response,isLoading,refetch } = useGetOrdersListQuery(CBXID,{skip:!CBXID});
+  // const CBXID = await AsyncStorage.getItem("CBXID");
 
   const handleConfirm = (date) => {
     setSelectedDate(date);
@@ -45,18 +47,28 @@ export default function OrderListScreen({ navigation }) {
 
   useEffect(() => {
     (async () => {
+      const cbxid = await AsyncStorage.getItem("CBXID");
+      if (cbxid) {
+        setCBXID(cbxid);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
       setLoading(true); // start loading
-      let response = await handleGetOrdersList();
+      console.log(response)
       if (response) {
         const token = await AsyncStorage.getItem("CBXID");
-        let filterredData = response.filter((item) => item?.cbXid == token);
-        console.log(filterredData)
+        let filterredData = response?.filter(
+          (item) => item?.cbXid == token
+        );
         setOrderListDetails(filterredData);
         setFilteredOrders(filterredData); // Initialize filtered orders
       }
       setLoading(false); // stop loading
     })();
-  }, []);
+  }, [response]);
 
   // Filter orders whenever orderListDetails, statusValue, selectedDate, or searchQuery changes
   useEffect(() => {
@@ -230,6 +242,7 @@ export default function OrderListScreen({ navigation }) {
                 setSearchQuery("");
                 setStatusValue("All");
                 setSelectedDate(null);
+                refetch()
               }}
             >
               <Icon name="refresh" size={20} color="#6b7280" />
@@ -335,7 +348,7 @@ export default function OrderListScreen({ navigation }) {
         )}
 
         {/* Results Summary */}
-        {!loading && (
+        {!loading && !isLoading && (
           <View style={styles.resultsHeader}>
             <Icon name="format-list-bulleted" size={16} color="#6b7280" />
             <Text style={styles.resultsText}>
@@ -352,7 +365,7 @@ export default function OrderListScreen({ navigation }) {
         />
 
         {/* Modern Loading Indicator */}
-        {loading ? (
+        {loading || isLoading ? (
           <View style={styles.modernLoaderContainer}>
             <View style={styles.loaderCard}>
               <ActivityIndicator size="large" color="#6366f1" />

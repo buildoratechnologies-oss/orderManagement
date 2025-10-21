@@ -41,10 +41,53 @@ const ClientDetailsModal = ({
   const [uploadCheckInImageInfo] = useUploadCheckInImageInfoMutation();
 
   if (!client) return null;
-  
+
   // Debug logging
   // console.log('Client data in modal:', JSON.stringify(client, null, 2));
   // console.log('Client keys:', Object.keys(client));
+
+  // Derived display helpers
+  const fullName =
+    client?.companyName ||
+    [client?.firstName, client?.lastName].filter(Boolean).join(" ") ||
+    client?.name ||
+    "Unknown";
+  const displayCompany =
+    client?.companyName ||
+    client?.userCompany?.companyBranch?.companies?.nameEng ||
+    client?.userCompany?.companyBranch?.nameEng ||
+    null;
+  const displayAddress =
+    client?.officeAddress ||
+    client?.userCompany?.companyBranch?.poBox ||
+    client?.userCompany?.companyBranch?.companies?.address ||
+    client?.userCompany?.companyBranch?.branches?.address ||
+    null;
+  const branchName =
+    client?.userCompany?.companyBranch?.branches?.nameEng || null;
+  const companyPhone =
+    client?.userCompany?.companyBranch?.phone ||
+    client?.userCompany?.companyBranch?.mobile ||
+    client?.mobile ||
+    null;
+  const rolesList = Array.isArray(client?.roles)
+    ? client.roles.map((r) => r?.nameEng).filter(Boolean)
+    : [];
+  const genderLabel =
+    client?.gender === "M"
+      ? "Male"
+      : client?.gender === "F"
+      ? "Female"
+      : client?.gender || "N/A";
+  const boolText = (b) => (b ? "Yes" : "No");
+  const getInitials = (name) =>
+    (name || "")
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U";
 
   // Handle phone press
   const handleMobilePress = () => {
@@ -53,10 +96,10 @@ const ClientDetailsModal = ({
 
   // Handle address press
   const handleAddressPress = () => {
-    if (client.officeAddress) {
+    if (displayAddress) {
       Linking.openURL(
         `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          client.officeAddress
+          displayAddress
         )}`
       );
     }
@@ -72,11 +115,23 @@ const ClientDetailsModal = ({
     );
   };
 
-  // ✅ Run Check-In first, then open Upload Modal
+  // Open Upload Modal only
   const handleCheckIn = async () => {
     try {
       setLoading(true);
       await AsyncStorage.setItem("selectedShop", JSON.stringify(client));
+      setUploadModal(true);
+    } catch (error) {
+      console.log("Error:", error);
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Perform actual check-in after image is uploaded
+  const performCheckIn = async () => {
+    try {
       const attendanceLogPid = await AsyncStorage.getItem("attendanceLogPid");
 
       const payload = {
@@ -87,48 +142,47 @@ const ClientDetailsModal = ({
         atClientLoginLongitude: longitude,
       };
 
+      // Check if this is a planned visit and add planVisitDetailXid
+      if (client?.dataType === "plannedVisit" || client?.planned) {
+        payload.PlanVisitDetailXID = client?.pid;
+      }
+
       const response = await handleUserShopVisitCheckIn(payload);
 
       if (response) {
         await AsyncStorage.setItem("visitCheckIn", JSON.stringify(response));
         setCheckInId(JSON.stringify(response?.details));
-        Alert.alert(
-          "Check-In Successful",
-          "You have successfully checked in. Would you like to upload a photo?",
-          [
-            {
-              text: "Upload Photo",
-              onPress: () => setUploadModal(true),
-            },
-            {
-              text: "Close",
-              style: "cancel",
-              onPress: goToHomeAndResetHistory,
-            },
-          ]
-        );
+        return response;
       }
     } catch (error) {
       console.log("Check-In Error:", error);
-      Alert.alert("Error", "Something went wrong during check-in.");
-    } finally {
-      setLoading(false);
+      throw error;
     }
   };
 
   const handleploadImageData = async (info) => {
-try {
-      let res = await uploadCheckInImageInfo([
-      { ...info, attendanceLogXid: checkInId },
-    ]);
-    console.log("reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
-    console.log(res)
-    await handleUploadMultipleImages([{ ...info }]);
-    setUploadModal(false);
-    goToHomeAndResetHistory();
-} catch (error) {
-  console.log("errrr:"+error)
-}
+    try {
+      // First: Perform check-in API call
+      const checkInResponse = await performCheckIn();
+
+      if (checkInResponse) {
+        // Second: Upload image info with check-in response
+        let res = await uploadCheckInImageInfo([
+          { ...info, attendanceLogXid: checkInId },
+        ]);
+
+        // Third: Upload multiple images
+        await handleUploadMultipleImages([{ ...info }]);
+
+        setUploadModal(false);
+        goToHomeAndResetHistory();
+      } else {
+        Alert.alert("Error", "Check-in failed. Please try again.");
+      }
+    } catch (error) {
+      console.log("Error:", error);
+      Alert.alert("Error", "Something went wrong during check-in or upload.");
+    }
   };
 
   // ✅ Upload from gallery
@@ -212,10 +266,23 @@ try {
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.headerContent}>
-              <Icon name="store" size={24} color="#6366f1" />
+              <View style={styles.avatar}>
+                {client?.imageUrl ? (
+                  <Image
+                    source={{ uri: client.imageUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Text style={styles.avatarInitials}>
+                    {getInitials(fullName)}
+                  </Text>
+                )}
+              </View>
               <View style={styles.headerText}>
-                <Text style={styles.modalTitle}>{client.companyName}</Text>
-                <Text style={styles.modalSubtitle}>Client Details</Text>
+                <Text style={styles.modalTitle}>{fullName}</Text>
+                <Text style={styles.modalSubtitle}>
+                  {displayCompany || "User Details"}
+                </Text>
               </View>
             </View>
             <Pressable style={styles.closeButton} onPress={onClose}>
@@ -223,59 +290,71 @@ try {
             </Pressable>
           </View>
 
-          <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 20}}>
-            {/* Test content to ensure rendering */}
-            <View style={{padding: 20, backgroundColor: '#f0f0f0', margin: 10, borderRadius: 8}}>
-              <Text style={{fontSize: 16, color: '#000'}}>TEST: ScrollView is rendering</Text>
-              <Text style={{fontSize: 14, color: '#666', marginTop: 5}}>Client name: {client?.companyName || client?.name || 'Unknown'}</Text>
-            </View>
+          <ScrollView
+            style={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
             {/* Basic Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Basic Information</Text>
-              
-              {client.outletCode && (
-                <View style={styles.infoRow}>
-                  <Icon name="identifier" size={18} color="#6b7280" />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Outlet Code</Text>
-                    <Text style={styles.infoValue}>{client.outletCode}</Text>
-                  </View>
-                </View>
-              )}
-              
               <View style={styles.infoRow}>
-                <Icon name="store-outline" size={18} color="#6b7280" />
+                <Icon name="identifier" size={18} color="#6b7280" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Outlet Name</Text>
-                  <Text style={styles.infoValue}>{client.companyName || client.name || 'N/A'}</Text>
+                  <Text style={styles.infoLabel}>User ID (PID)</Text>
+                  <Text style={styles.infoValue}>{client?.pid ?? "N/A"}</Text>
                 </View>
               </View>
-
-              {client.clientReferenceNumber && (
-                <View style={styles.infoRow}>
-                  <Icon name="card-text" size={18} color="#6b7280" />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Reference Code</Text>
-                    <Text style={styles.infoValue}>{client.clientReferenceNumber}</Text>
-                  </View>
-                </View>
-              )}
-              
-              {/* Debug info - shows all available client properties */}
-              {/* <View style={styles.infoRow}>
-                <Icon name="information" size={18} color="#ea580c" />
+              <View style={styles.infoRow}>
+                <Icon name="gender-male-female" size={18} color="#6b7280" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Available Data</Text>
-                  <Text style={styles.infoValue}>{Object.keys(client).join(', ')}</Text>
+                  <Text style={styles.infoLabel}>Gender</Text>
+                  <Text style={styles.infoValue}>{genderLabel}</Text>
                 </View>
-              </View> */}
+              </View>
+              <View style={styles.infoRow}>
+                <Icon name="shield-check" size={18} color="#6b7280" />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Two-Factor Enabled</Text>
+                  <Text style={styles.infoValue}>
+                    {boolText(client?.enable2Factor)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Icon name="lock" size={18} color="#6b7280" />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Account Locked</Text>
+                  <Text style={styles.infoValue}>
+                    {boolText(client?.isLocked)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Icon name="calendar" size={18} color="#6b7280" />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Created On</Text>
+                  <Text style={styles.infoValue}>
+                    {client?.createdOn || "N/A"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Icon name="clock-outline" size={18} color="#6b7280" />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Last Edit</Text>
+                  <Text style={styles.infoValue}>
+                    {client?.lastEdit || "N/A"}
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {/* Contact Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Contact Information</Text>
-              
-              {client.mobile && (
+
+              {client?.mobile && (
                 <Pressable style={styles.infoRow} onPress={handleMobilePress}>
                   <Icon name="phone" size={18} color="#059669" />
                   <View style={styles.infoContent}>
@@ -287,14 +366,50 @@ try {
                   <Icon name="chevron-right" size={16} color="#059669" />
                 </Pressable>
               )}
-              
-              {client.officeAddress && (
+
+              {client?.email && (
+                <Pressable
+                  style={styles.infoRow}
+                  onPress={() => Linking.openURL(`mailto:${client.email}`)}
+                >
+                  <Icon name="email" size={18} color="#2563eb" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={[styles.infoValue, styles.linkValue]}>
+                      {client.email}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color="#2563eb" />
+                </Pressable>
+              )}
+
+              {client?.landLine && (
+                <View style={styles.infoRow}>
+                  <Icon name="phone-classic" size={18} color="#6b7280" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Landline</Text>
+                    <Text style={styles.infoValue}>{client.landLine}</Text>
+                  </View>
+                </View>
+              )}
+
+              {client?.dialingCode && (
+                <View style={styles.infoRow}>
+                  <Icon name="numeric" size={18} color="#6b7280" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Dialing Code</Text>
+                    <Text style={styles.infoValue}>{client.dialingCode}</Text>
+                  </View>
+                </View>
+              )}
+
+              {displayAddress && (
                 <Pressable style={styles.infoRow} onPress={handleAddressPress}>
                   <Icon name="map-marker" size={18} color="#dc2626" />
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Location</Text>
+                    <Text style={styles.infoLabel}>Address</Text>
                     <Text style={[styles.infoValue, styles.linkValue]}>
-                      {client.officeAddress}
+                      {displayAddress}
                     </Text>
                   </View>
                   <Icon name="chevron-right" size={16} color="#dc2626" />
@@ -302,10 +417,71 @@ try {
               )}
             </View>
 
+            {/* Company & Branch */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Company & Branch</Text>
+              {displayCompany && (
+                <View style={styles.infoRow}>
+                  <Icon name="office-building" size={18} color="#6b7280" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Company</Text>
+                    <Text style={styles.infoValue}>{displayCompany}</Text>
+                  </View>
+                </View>
+              )}
+              {branchName && (
+                <View style={styles.infoRow}>
+                  <Icon name="store-marker" size={18} color="#6b7280" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Branch</Text>
+                    <Text style={styles.infoValue}>{branchName}</Text>
+                  </View>
+                </View>
+              )}
+              {displayAddress && (
+                <Pressable style={styles.infoRow} onPress={handleAddressPress}>
+                  <Icon name="map-marker" size={18} color="#dc2626" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Address</Text>
+                    <Text style={[styles.infoValue, styles.linkValue]}>
+                      {displayAddress}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color="#dc2626" />
+                </Pressable>
+              )}
+              {companyPhone && (
+                <Pressable style={styles.infoRow} onPress={handleMobilePress}>
+                  <Icon name="phone" size={18} color="#059669" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Company Phone</Text>
+                    <Text style={[styles.infoValue, styles.linkValue]}>
+                      {companyPhone}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color="#059669" />
+                </Pressable>
+              )}
+            </View>
+
+            {/* Roles */}
+            {rolesList.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Roles</Text>
+                <View style={styles.chipsRow}>
+                  {rolesList.map((role) => (
+                    <View key={role} style={styles.roleChip}>
+                      <Text style={styles.roleChipText}>{role}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Location Details */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location Details</Text>
-              
+
               {client.city && (
                 <View style={styles.infoRow}>
                   <Icon name="city" size={18} color="#6b7280" />
@@ -315,7 +491,7 @@ try {
                   </View>
                 </View>
               )}
-              
+
               {client.stateName && (
                 <View style={styles.infoRow}>
                   <Icon name="map-outline" size={18} color="#6b7280" />
@@ -325,14 +501,16 @@ try {
                   </View>
                 </View>
               )}
-              
+
               {/* Fallback if no location data */}
               {!client.city && !client.stateName && (
                 <View style={styles.infoRow}>
                   <Icon name="map-marker-off" size={18} color="#6b7280" />
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>Location</Text>
-                    <Text style={styles.infoValue}>No location data available</Text>
+                    <Text style={styles.infoValue}>
+                      No location data available
+                    </Text>
                   </View>
                 </View>
               )}
@@ -341,7 +519,7 @@ try {
             {/* Business Details */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Business Details</Text>
-              
+
               {client.channel && (
                 <View style={styles.infoRow}>
                   <Icon name="account-network" size={18} color="#6b7280" />
@@ -351,7 +529,7 @@ try {
                   </View>
                 </View>
               )}
-              
+
               {client.category && (
                 <View style={styles.infoRow}>
                   <Icon name="tag" size={18} color="#6b7280" />
@@ -361,17 +539,19 @@ try {
                   </View>
                 </View>
               )}
-              
+
               {client.storeClassification && (
                 <View style={styles.infoRow}>
                   <Icon name="store-marker" size={18} color="#6b7280" />
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>Store Classification</Text>
-                    <Text style={styles.infoValue}>{client.storeClassification}</Text>
+                    <Text style={styles.infoValue}>
+                      {client.storeClassification}
+                    </Text>
                   </View>
                 </View>
               )}
-              
+
               {client.pgnCheckIn && (
                 <View style={styles.infoRow}>
                   <Icon name="check-circle" size={18} color="#6b7280" />
@@ -393,12 +573,9 @@ try {
             >
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </Pressable>
-            
+
             <Pressable
-              style={[
-                styles.primaryButton,
-                loading && styles.buttonDisabled,
-              ]}
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
               onPress={handleCheckIn}
               disabled={loading}
             >
@@ -416,7 +593,17 @@ try {
       </View>
 
       {/* Upload Photo Modal */}
-      <Modal transparent visible={uploadModal} animationType="fade">
+      <Modal
+        transparent
+        visible={uploadModal}
+        animationType="fade"
+        onRequestClose={() => {
+          Alert.alert(
+            "Photo Required",
+            "Please upload a photo to complete your check-in."
+          );
+        }}
+      >
         <View style={styles.uploadOverlay}>
           <View style={styles.uploadContainer}>
             {/* Upload Header */}
@@ -425,13 +612,18 @@ try {
                 <Icon name="camera" size={24} color="#6366f1" />
                 <Text style={styles.uploadTitle}>Upload Photo</Text>
               </View>
-              <Text style={styles.uploadSubtitle}>Add a check-in photo to complete your visit</Text>
+              <Text style={styles.uploadSubtitle}>
+                Photo is required to complete your check-in.
+              </Text>
             </View>
 
             {/* Image Preview */}
             {selectedImage && (
               <View style={styles.imagePreviewContainer}>
-                <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={styles.imagePreview}
+                />
                 <View style={styles.previewOverlay}>
                   <Icon name="check-circle" size={32} color="#059669" />
                   <Text style={styles.previewText}>Image Selected</Text>
@@ -442,7 +634,10 @@ try {
             {/* Upload Options */}
             <View style={styles.uploadOptions}>
               <Pressable
-                style={[styles.uploadOptionButton, isUploading && styles.buttonDisabled]}
+                style={[
+                  styles.uploadOptionButton,
+                  isUploading && styles.buttonDisabled,
+                ]}
                 onPress={pickImage}
                 disabled={isUploading}
               >
@@ -452,7 +647,10 @@ try {
               </Pressable>
 
               <Pressable
-                style={[styles.uploadOptionButton, isUploading && styles.buttonDisabled]}
+                style={[
+                  styles.uploadOptionButton,
+                  isUploading && styles.buttonDisabled,
+                ]}
                 onPress={takePhoto}
                 disabled={isUploading}
               >
@@ -462,28 +660,17 @@ try {
               </Pressable>
             </View>
 
-            {/* Upload Actions */}
-            <View style={styles.uploadActions}>
-              <Pressable
-                style={[styles.uploadSecondaryButton, isUploading && styles.buttonDisabled]}
-                onPress={() => {
-                  if (isUploading) return;
-                  setUploadModal(false);
-                  goToHomeAndResetHistory();
-                }}
-                disabled={isUploading}
-              >
-                <Text style={styles.uploadSecondaryButtonText}>Skip Photo</Text>
-              </Pressable>
-            </View>
-
             {/* Loading Overlay */}
             {isUploading && (
               <View style={styles.uploadLoadingOverlay}>
                 <View style={styles.uploadLoadingContent}>
                   <ActivityIndicator size="large" color="#6366f1" />
-                  <Text style={styles.uploadLoadingText}>Uploading Photo...</Text>
-                  <Text style={styles.uploadLoadingSubtext}>Please wait while we process your image</Text>
+                  <Text style={styles.uploadLoadingText}>
+                    Uploading Photo...
+                  </Text>
+                  <Text style={styles.uploadLoadingSubtext}>
+                    Please wait while we process your image
+                  </Text>
                 </View>
               </View>
             )}
@@ -498,36 +685,36 @@ const styles = StyleSheet.create({
   // Main Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    width: '100%',
-    height: '90%',
+    width: "100%",
+    height: "90%",
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
-  
+
   // Header Styles
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: "#f3f4f6",
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   headerText: {
@@ -536,42 +723,42 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: "#6b7280",
     marginTop: 2,
   },
   closeButton: {
     padding: 4,
   },
-  
+
   // Content Styles
   scrollContent: {
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 8,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     minHeight: 200,
   },
   section: {
     marginVertical: 12,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 12,
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f9fafb',
+    borderBottomColor: "#f9fafb",
   },
   infoContent: {
     flex: 1,
@@ -579,186 +766,228 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: "#6b7280",
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+    fontWeight: "500",
+    color: "#374151",
   },
   linkValue: {
-    color: '#6366f1',
+    color: "#6366f1",
   },
-  
+
+  // Avatar styles
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#eef2ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 24,
+  },
+  avatarInitials: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#4f46e5",
+  },
+
+  // Chips
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  roleChip: {
+    backgroundColor: "#eef2ff",
+    borderColor: "#c7d2fe",
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  roleChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4f46e5",
+  },
+
   // Action Buttons
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: "#f3f4f6",
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     paddingVertical: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   secondaryButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
+    fontWeight: "500",
+    color: "#6b7280",
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: '#6366f1',
+    backgroundColor: "#6366f1",
     paddingVertical: 14,
     borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   primaryButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: "600",
+    color: "#fff",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  
+
   // Upload Modal Styles
   uploadOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   uploadContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    width: '100%',
+    width: "100%",
     maxWidth: 400,
   },
   uploadHeader: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    alignItems: 'center',
+    borderBottomColor: "#f3f4f6",
+    alignItems: "center",
   },
   uploadHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   uploadTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginLeft: 12,
   },
   uploadSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
+    color: "#6b7280",
+    textAlign: "center",
   },
-  
+
   // Image Preview
   imagePreviewContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 20,
-    position: 'relative',
+    position: "relative",
   },
   imagePreview: {
     width: 200,
     height: 200,
     borderRadius: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
   },
   previewOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 30,
     right: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   previewText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#059669',
+    fontWeight: "500",
+    color: "#059669",
     marginLeft: 6,
   },
-  
+
   // Upload Options
   uploadOptions: {
     padding: 20,
   },
   uploadOptionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: "#e5e7eb",
   },
   uploadOptionText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
+    fontWeight: "500",
+    color: "#374151",
     flex: 1,
     marginLeft: 12,
   },
-  
+
   // Upload Actions
   uploadActions: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: "#f3f4f6",
   },
   uploadSecondaryButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     paddingVertical: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   uploadSecondaryButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
+    fontWeight: "500",
+    color: "#6b7280",
   },
-  
+
   // Upload Loading
   uploadLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 16,
   },
   uploadLoadingContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   uploadLoadingText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginTop: 16,
   },
   uploadLoadingSubtext: {
     fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
+    color: "#6b7280",
+    textAlign: "center",
     marginTop: 8,
   },
 });
