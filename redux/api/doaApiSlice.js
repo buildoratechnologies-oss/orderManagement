@@ -30,6 +30,10 @@ export const doaApiSlice = createApi({
       query: (id) => `posts/${id}`,
     }),
 
+    getDoaList: builder.query({
+      query: (CBXID = 123) => `DOARequest/GetAllByUserID/${CBXID}`,
+    }),
+
     uploadDoaImageInfo: builder.mutation({
       query: (newPost) => ({
         url: "DOARequest/InsertDOARequestImages",
@@ -43,6 +47,7 @@ export const doaApiSlice = createApi({
 // Export hooks for usage in components
 export const {
   useAddDoaRequestMutation,
+  useGetDoaListQuery,
   useGetPostByIdQuery,
   useUploadDoaImageInfoMutation,
 } = doaApiSlice;

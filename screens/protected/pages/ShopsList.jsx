@@ -631,12 +631,21 @@ const ShopsList = () => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Nearby Shops</Text>
-          <TouchableOpacity
-            style={styles.headerRefreshButton}
-            onPress={onRefresh}
-          >
-            <Icon name="refresh" size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerActionsRight}>
+            <TouchableOpacity
+              style={styles.headerAddButton}
+              onPress={() => navigation.navigate("AddShop")}
+            >
+              <Icon name="plus" size={20} color="#fff" />
+              <Text style={styles.headerAddText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerRefreshButton}
+              onPress={onRefresh}
+            >
+              <Icon name="refresh" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Stats Bar */}
@@ -837,6 +846,26 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     padding: 8,
     borderRadius: 8,
+    marginLeft: 8,
+  },
+  headerActionsRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerAddButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  headerAddText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   statsBar: {
     flexDirection: "row",

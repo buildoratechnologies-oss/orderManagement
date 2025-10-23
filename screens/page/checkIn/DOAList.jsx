@@ -251,7 +251,6 @@ export default function DOAPage() {
       };
 
       console.log("DOA Submission Data:", newDoa);
-      // console.log("Images Data:", imagesData);
 
       const res = await handleSubmitDOA(newDoa);
       if (res) {

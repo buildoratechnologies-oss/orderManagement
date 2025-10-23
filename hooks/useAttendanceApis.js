@@ -47,7 +47,6 @@ const useAttendanceApis = () => {
         }
       );
 
-      //console.log("✅ Success:", response?.data);
       if (response?.data?.statusCode == 200) {
         return true;
       } else {
@@ -59,20 +58,23 @@ const useAttendanceApis = () => {
     }
   };
 
-  const handleGetAttendanceListByUser = async (date) => {
+  const handleGetAttendanceListByUser = async (date = null, userXidOverride = null) => {
     try {
       const storedToken = await AsyncStorage.getItem("token");
-      //   ​/api​/​/{ByDate}
+      let userXid = userXidOverride;
+      if (userXid == null) {
+        const storedUser = await AsyncStorage.getItem("userXid");
+        userXid = storedUser ?? 123;
+      }
       let url = date
-        ? GetBaseApiUrl(`UserAttendance/GetUserAttendanceByUserAndDate/${date}`)
-        : GetBaseApiUrl(`UserAttendance/GetAllByUserID/123`);
+        ? GetBaseApiUrl(`UserAttendance/GetUserAttendanceByUserAndDate/${userXid}/${date}`)
+        : GetBaseApiUrl(`UserAttendance/GetAllByUserID/${userXid}`);
       const response = await axios.get(url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${storedToken}`, // 👈 token here
         },
       });
-      //   //console.log("✅ Success:", /response?.data);
       if (response?.data) {
         return response?.data;
       } else {

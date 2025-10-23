@@ -19,15 +19,14 @@ const customBaseQuery = async (args, api, extraOptions) => {
 export const protectedApi = createApi({
   reducerPath: "protectedApi",
   baseQuery: customBaseQuery,
+  tagTypes: ["Clients", "Items", "Orders", "getClientsWithPlanned"],
   endpoints: (builder) => ({
     getClientsWithPlanned: builder.query({
-      query: () => 
-        `Client/GetClientWithPlannedForApp`,
+      query: () => `Client/GetClientWithPlannedForApp`,
       providesTags: ["getClientsWithPlanned"],
     }),
     getClients: builder.query({
-      query: ({ CBXID, userXid }) => 
-        `Client/GetAll/${CBXID}/${userXid}/-1`,
+      query: ({ CBXID, userXid }) => `Client/GetAll/${CBXID}/${userXid}/-1`,
       providesTags: ["Clients"],
     }),
 
@@ -37,13 +36,15 @@ export const protectedApi = createApi({
         const CBXID = await AsyncStorage.getItem("CBXID");
         const companyXid = await AsyncStorage.getItem("companyXid");
 
-        return fetchWithBQ(`Item/GetItemsByCompanyBranch/${CBXID}/${companyXid}`);
+        return fetchWithBQ(
+          `Item/GetItemsByCompanyBranch/${CBXID}/${companyXid}`
+        );
       },
       providesTags: ["Items"],
     }),
 
     getOrdersList: builder.query({
-      query: (CBXID) => `Invoice/GetInvoicesList/${CBXID}/5/-1`,
+      query: (CBXID = 0) => `Invoice/GetInvoicesList/${CBXID}/5/-1`,
     }),
 
     getOrderDetails: builder.query({
@@ -70,6 +71,15 @@ export const protectedApi = createApi({
     getDaySummarryDetails: builder.query({
       query: (date) => `OrderReport/GetDaySummaryByDateAndUser${date}`,
     }),
+
+    //shop-apis
+    onBording: builder.mutation({
+      query: (newPost) => ({
+        url: "Lead",
+        method: "POST",
+        body: newPost,
+      }),
+    }),
   }),
 });
 
@@ -82,4 +92,7 @@ export const {
   useUploadCheckInImageInfoMutation,
   useUploadMultipleFilesMutation,
   useGetDaySummarryDetailsQuery,
+
+  //shop-apis
+  useOnBordingMutation,
 } = protectedApi;

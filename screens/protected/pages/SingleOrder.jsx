@@ -61,9 +61,7 @@ export default function OrderDetails() {
       }
     })();
   }, []);
-  useEffect(() => {
-    console.log(cart);
-  }, [cart]);
+
   // Calculate total price based on GST toggle
   const totalPrice = useMemo(() => {
     return Object.entries(cart)?.reduce((sum, [itemId, itemData]) => {

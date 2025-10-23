@@ -218,7 +218,6 @@ const AttendanceScreen = () => {
     
     // Check if location is available, but don't block submission
     if (!location?.latitude || !location?.longitude) {
-      console.log("llll")
       Alert.alert(
         "Location Unavailable",
         "Your location could not be determined. Attendance will be marked without location data. Do you want to continue?",

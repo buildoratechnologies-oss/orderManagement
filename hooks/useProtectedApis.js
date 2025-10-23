@@ -86,22 +86,19 @@ const useProtectedApis = () => {
     }
   };
 
-  const handleGetOrdersList = async () => {
+  const handleGetOrdersList = async (userXidOverride = null) => {
     try {
       const storedToken = await AsyncStorage.getItem("token");
       const CBXID = await AsyncStorage.getItem("CBXID");
-      let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/-1`);
-      // let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/${userXid}`);
+      const userSegment = userXidOverride == null ? -1 : userXidOverride;
+      let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/${userSegment}`);
 
-      // https://ams.calibrecue.com/api//10/5/-1
       const response = await axios.get(url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${storedToken}`, // 👈 token here
         },
       });
-
-      //console.log("✅ Success:", response?.data);
 
       if (response?.data) {
         return response?.data;
@@ -166,6 +163,24 @@ const useProtectedApis = () => {
     }
   };
 
+  const handleGetUsersList = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem("token");
+      let url = GetBaseApiUrl("User");
+      const response = await axios.get(url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${storedToken}`,
+        },
+      });
+      if (response?.data) return response.data;
+      return [];
+    } catch (error) {
+      console.error("❌ Error:", error);
+      return [];
+    }
+  };
+
   return {
     handleGetClients,
     handleGetOutlets,
@@ -173,6 +188,7 @@ const useProtectedApis = () => {
     handleSubmitOrder,
     handleGetOrdersList,
     handleGetOrderDetails,
+    handleGetUsersList,
   };
 };
 

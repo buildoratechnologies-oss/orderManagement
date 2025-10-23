@@ -1,22 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  useColorScheme,
   Modal,
   Pressable,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import CustomDropdown from "../../components/CustomDropDown";
-import { useGetAllAttendanceQuery } from "../../redux/api/attendanceApiSlice";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomDropdown from "../../../../components/CustomDropDown";
+import { useGetAllAttendanceQuery } from "../../../../redux/api/attendanceApiSlice";
 
-const AttendanceList = () => {
+export default function AsmUserAttendance({ userXid }) {
   const currentYear = new Date().getFullYear();
   const [attendanceData, setAttendanceData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -26,13 +24,13 @@ const AttendanceList = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState([]);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [userXid, setUserXid] = useState(null);
+
   const {
-    data: attendanceList,
+    data: attendanceList = [],
     isLoading,
     refetch,
     isFetching,
-  } = useGetAllAttendanceQuery({userXid}, { skip: !userXid });
+  } = useGetAllAttendanceQuery({ userXid }, { skip: !userXid });
 
   const months = [
     "Jan",
@@ -70,17 +68,6 @@ const AttendanceList = () => {
       setAttendanceData(attendanceList);
     }
   }, [attendanceList]);
-
-  useEffect(() => {
-    (async () => {
-      const storedUser = await AsyncStorage.getItem("userXid");
-      console.log(storedUser);
-      if (storedUser) {
-        setUserXid(storedUser);
-        console.log(storedUser);
-      }
-    })();
-  }, []);
 
   const filterData = () => {
     if (!attendanceData || attendanceData.length === 0) {
@@ -209,13 +196,10 @@ const AttendanceList = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        {/* <Text style={styles.headerTitle}>My Attendance</Text> */}
-        {/* <Text style={styles.headerTitle}></Text> */}
         <View style={styles.resultsInfoBar}>
           <Icon name="calendar-check" size={16} color="#6366f1" />
           <Text style={styles.resultsText}>
-            {filteredData.length} records in {months[selectedMonth]}{" "}
-            {selectedYear}
+            {filteredData.length} records in {months[selectedMonth]} {selectedYear}
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -241,15 +225,6 @@ const AttendanceList = () => {
         </View>
       ) : (
         <View style={styles.content}>
-          {/* Results Info */}
-          {/* <View style={styles.resultsInfoBar}>
-            <Icon name="calendar-check" size={16} color="#6366f1" />
-            <Text style={styles.resultsText}>
-              {filteredData.length} records in {months[selectedMonth]} {selectedYear}
-            </Text>
-          </View> */}
-
-          {/* Attendance List */}
           {filteredData.length === 0 ? (
             <View style={styles.emptyState}>
               <Icon name="calendar-blank" size={48} color="#d1d5db" />
@@ -303,17 +278,6 @@ const AttendanceList = () => {
               <ScrollView style={{ marginTop: 10 }}>
                 {selectedLogs.map((log, idx) => (
                   <View key={idx} style={styles.logCard}>
-                    {/* PID and Client ID */}
-                    {/* <View style={styles.logRow}>
-                      <Icon name="identifier" size={18} color="#9333EA" />
-                      <Text style={styles.logText}>PID: {log.pid}</Text>
-                    </View>
-                    <View style={styles.logRow}>
-                      <Icon name="account-circle-outline" size={18} color="#3B82F6" />
-                      <Text style={styles.logText}>Client ID: {log.clientXid}</Text>
-                    </View> */}
-
-                    {/* Company Name */}
                     {log.companyName && (
                       <View style={styles.logRow}>
                         <Icon
@@ -327,45 +291,34 @@ const AttendanceList = () => {
                       </View>
                     )}
 
-                    {/* Check In */}
                     <View style={styles.logRow}>
                       <Icon name="login" size={18} color="#0EA5E9" />
                       <Text style={styles.logText}>
-                        Check In:{" "}
-                        {new Date(log.checkInTimeLog).toLocaleTimeString()}
+                        Check In: {new Date(log.checkInTimeLog).toLocaleTimeString()}
                       </Text>
                     </View>
-                    {/* Check In Lat/Lng */}
                     <View style={styles.logRowIndented}>
                       <Icon name="map-marker" size={16} color="#EF4444" />
                       <Text style={styles.logSubText}>
-                        {log.atClientLoginLatitude},{" "}
-                        {log.atClientLoginLongitude}
+                        {log.atClientLoginLatitude}, {log.atClientLoginLongitude}
                       </Text>
                     </View>
 
-                    {/* Check Out */}
                     <View style={styles.logRow}>
                       <Icon name="logout" size={18} color="#F59E0B" />
                       <Text style={styles.logText}>
-                        Check Out:{" "}
-                        {log.checkOutTimeLog
-                          ? new Date(log.checkOutTimeLog).toLocaleTimeString()
-                          : "—"}
+                        Check Out: {log.checkOutTimeLog ? new Date(log.checkOutTimeLog).toLocaleTimeString() : "—"}
                       </Text>
                     </View>
-                    {/* Check Out Lat/Lng */}
                     {log.checkOutTimeLog && (
                       <View style={styles.logRowIndented}>
                         <Icon name="map-marker" size={16} color="#22C55E" />
                         <Text style={styles.logSubText}>
-                          {log.atClientLogoutLatitude},{" "}
-                          {log.atClientLogoutLongitude}
+                          {log.atClientLogoutLatitude}, {log.atClientLogoutLongitude}
                         </Text>
                       </View>
                     )}
 
-                    {/* Remarks */}
                     {log.remarks && (
                       <View style={styles.logRemarksContainer}>
                         <Icon
@@ -380,9 +333,7 @@ const AttendanceList = () => {
                 ))}
               </ScrollView>
             ) : (
-              <Text
-                style={{ marginTop: 20, textAlign: "center", color: "#475569" }}
-              >
+              <Text style={{ marginTop: 20, textAlign: "center", color: "#475569" }}>
                 No logs available
               </Text>
             )}
@@ -468,7 +419,7 @@ const AttendanceList = () => {
       </Modal>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -516,9 +467,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f8fafc",
     paddingHorizontal: 16,
-    // paddingVertical: 12,
     borderRadius: 8,
-    // marginBottom: 16,
   },
   resultsText: {
     fontSize: 14,
@@ -807,6 +756,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-// });
-
-export default AttendanceList;

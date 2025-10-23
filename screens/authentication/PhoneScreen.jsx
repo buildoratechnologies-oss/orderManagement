@@ -81,6 +81,38 @@ export default function PhoneScreen({ navigation }) {
     }
   };
 
+  // Initiate authentication via WhatsApp (sends OTP over WhatsApp if supported by backend)
+  const handleWhatsAppAuth = async () => {
+    const error = validatePhone(phone);
+    if (error) {
+      setPhoneError(error);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setPhoneError("");
+
+      const exists = await handleVerifyPhoneNumber({
+        mobileNumber: phone,
+        companyXID: 0,
+        channel: "whatsapp",
+      });
+
+      if (exists) {
+        await AsyncStorage.setItem("phone", phone);
+        navigation.navigate("Otp", { phone, channel: "whatsapp" });
+      } else {
+        setPhoneError("Phone number not found in our system");
+      }
+    } catch (error) {
+      console.log(error?.data);
+      setPhoneError("Please enter a valid phone number");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const initializeScreen = async () => {
       await AsyncStorage.clear();
@@ -170,6 +202,19 @@ export default function PhoneScreen({ navigation }) {
               icon={!loading && <Ionicons name="arrow-forward" size={20} color={Colors.white} />}
               iconPosition="right"
             />
+
+            <Button
+              title={loading ? "Please wait..." : "Continue with WhatsApp"}
+              onPress={handleWhatsAppAuth}
+              loading={loading}
+              disabled={loading || !phone}
+              variant="success"
+              size="large"
+              fullWidth
+              style={styles.whatsappButton}
+              icon={!loading && <Ionicons name="logo-whatsapp" size={20} color={Colors.white} />}
+              iconPosition="left"
+            />
           </View>
 
           {/* Footer */}
@@ -230,6 +275,10 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: Spacing['2xl'],
+  },
+  whatsappButton: {
+    marginTop: Spacing.md,
+    backgroundColor: '#25D366',
   },
   footer: {
     alignItems: 'center',

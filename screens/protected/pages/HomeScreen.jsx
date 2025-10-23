@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  TextInput,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import herPic from "../../../assets/herosec.jpg";
@@ -30,6 +31,13 @@ export default function Dashboard({ location, isLocationLoading }) {
   const [loading, setLoading] = useState(null);
   const [attendanceStatus, setAttendanceStatus] = useState(null);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+  const [isDeviationModalVisible, setIsDeviationModalVisible] = useState(false);
+  const [shopName, setShopName] = useState("");
+  const [reason, setReason] = useState("");
+  const [isSubmittingDeviation, setIsSubmittingDeviation] = useState(false);
+  const [shopNameError, setShopNameError] = useState(null);
+  const [reasonError, setReasonError] = useState(null);
+  const [touched, setTouched] = useState({ shopName: false, reason: false });
 
   const actions = [
     {
@@ -186,6 +194,49 @@ const handleCheckInToggle = async () => {
     }
   };
 
+  const validateShopName = (value) => {
+    const v = value.trim();
+    if (!v) return "Shop name is required.";
+    if (v.length < 2) return "Shop name must be at least 2 characters.";
+    if (!/^[a-zA-Z0-9 .,&'()\-]+$/.test(v))
+      return "Only letters, numbers and . , & ' ( ) - allowed.";
+    return null;
+  };
+
+  const validateReason = (value) => {
+    const v = value.trim();
+    if (!v) return "Reason is required.";
+    if (v.length < 5) return "Reason must be at least 5 characters.";
+    return null;
+  };
+
+  const handleDeviationSubmit = async () => {
+    const sErr = validateShopName(shopName);
+    const rErr = validateReason(reason);
+    setShopNameError(sErr);
+    setReasonError(rErr);
+    setTouched({ shopName: true, reason: true });
+    if (sErr || rErr) return;
+
+    try {
+      setIsSubmittingDeviation(true);
+      console.log("Deviation request:", { shopName, reason });
+      Alert.alert("Submitted", "Your deviation request has been submitted.");
+      setShopName("");
+      setReason("");
+      setTouched({ shopName: false, reason: false });
+      setIsDeviationModalVisible(false);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Failed to submit. Please try again.");
+    } finally {
+      setIsSubmittingDeviation(false);
+    }
+  };
+
+  const submitDisabled =
+    isSubmittingDeviation || !!validateShopName(shopName) || !!validateReason(reason);
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -242,6 +293,18 @@ const handleCheckInToggle = async () => {
               </View>
             </>
           )}
+        </TouchableOpacity>
+
+        {/* Deviation Request Button */}
+        <TouchableOpacity
+          style={[styles.actionCard, { backgroundColor: "#1abc9c" }]}
+          onPress={() => setIsDeviationModalVisible(true)}
+        >
+          <Image
+            source={{ uri: "https://img.icons8.com/ios-filled/100/document.png" }}
+            style={styles.actionIcon}
+          />
+          <Text style={styles.actionText}>Deviation Request</Text>
         </TouchableOpacity>
 
         {/* Action List */}
@@ -319,6 +382,96 @@ const handleCheckInToggle = async () => {
                   <Text style={styles.reportText}>{btn.title}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Deviation Request Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isDeviationModalVisible}
+        onRequestClose={() => setIsDeviationModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Deviation Request</Text>
+              <Pressable onPress={() => setIsDeviationModalVisible(false)}>
+                <Image
+                  source={{
+                    uri: "https://img.icons8.com/ios-glyphs/90/000000/multiply.png",
+                  }}
+                  style={styles.closeIcon}
+                />
+              </Pressable>
+            </View>
+
+            <View>
+              <Text style={styles.formLabel}>Shop Name</Text>
+              <TextInput
+                style={[styles.input, touched.shopName && shopNameError ? styles.inputError : null]}
+                placeholder="Enter shop name"
+                value={shopName}
+                onChangeText={(text) => {
+                  setShopName(text);
+                  if (touched.shopName) setShopNameError(validateShopName(text));
+                }}
+                onBlur={() => {
+                  setTouched((t) => ({ ...t, shopName: true }));
+                  setShopNameError(validateShopName(shopName));
+                }}
+                maxLength={80}
+                returnKeyType="next"
+              />
+              {touched.shopName && shopNameError ? (
+                <Text style={styles.errorText}>{shopNameError}</Text>
+              ) : null}
+
+              <Text style={[styles.formLabel, { marginTop: 12 }]}>Reason</Text>
+              <TextInput
+                style={[styles.textarea, touched.reason && reasonError ? styles.inputError : null]}
+                placeholder="Enter reason"
+                value={reason}
+                onChangeText={(text) => {
+                  setReason(text);
+                  if (touched.reason) setReasonError(validateReason(text));
+                }}
+                onBlur={() => {
+                  setTouched((t) => ({ ...t, reason: true }));
+                  setReasonError(validateReason(reason));
+                }}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={300}
+              />
+              {touched.reason && reasonError ? (
+                <Text style={styles.errorText}>{reasonError}</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#7f8c8d" }]}
+                onPress={() => setIsDeviationModalVisible(false)}
+                disabled={isSubmittingDeviation}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: "#1abc9c", opacity: submitDisabled ? 0.6 : 1 },
+                ]}
+                onPress={handleDeviationSubmit}
+                disabled={submitDisabled}
+              >
+                <Text style={styles.modalButtonText}>
+                  {isSubmittingDeviation ? "Submitting..." : "Submit"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -416,4 +569,44 @@ const styles = StyleSheet.create({
   },
   reportIcon: { width: 28, height: 28, marginRight: 12, tintColor: "#fff" },
   reportText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+
+  // Form styles
+  formLabel: { fontSize: 14, fontWeight: "600", color: "#2c3e50", marginBottom: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ecf0f1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#f8f9fa",
+  },
+  textarea: {
+    borderWidth: 1,
+    borderColor: "#ecf0f1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#f8f9fa",
+    minHeight: 100,
+  },
+  inputError: {
+    borderColor: "#e74c3c",
+  },
+  errorText: {
+    color: "#e74c3c",
+    fontSize: 12,
+    marginTop: 6,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 16,
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginLeft: 10,
+  },
+  modalButtonText: { color: "#fff", fontWeight: "700" },
 });

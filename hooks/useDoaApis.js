@@ -30,21 +30,23 @@ const useDoaApis = () => {
     }
   };
 
-  const handleGetDOAList = async () => {
+  const handleGetDOAList = async (userXidOverride = null) => {
     try {
       const storedToken = await AsyncStorage.getItem("token");
-      let url = GetBaseApiUrl(`DOARequest/GetAllByUserID/123`);
-      // let url = GetBaseApiUrl(`Invoice/GetInvoicesList/${CBXID}/5/${userXid}`);
+      // Default to current user if override not provided
+      let userXid = userXidOverride;
+      if (userXid == null) {
+        const storedUser = await AsyncStorage.getItem("userXid");
+        userXid = storedUser ?? 123;
+      }
+      let url = GetBaseApiUrl(`DOARequest/GetAllByUserID/${userXid}`);
 
-      // https://ams.calibrecue.com/api//10/5/-1
       const response = await axios.get(url, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${storedToken}`, // 👈 token here
+          Authorization: `Bearer ${storedToken}`,
         },
       });
-
-      //console.log("✅ Success:", response?.data);
 
       if (response?.data) {
         return response?.data;

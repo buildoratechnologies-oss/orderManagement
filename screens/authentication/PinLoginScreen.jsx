@@ -50,7 +50,7 @@ export default function PinLoginScreen({ navigation }) {
         if (JSON.parse(visitCheckIn)?.details) {
           navigation.replace("Protected", { screen: "MenuPage" });
         } else if (compareDates(date, attendance)) {
-          navigation.replace("Protected", { screen: "Dashboard" });
+          navigation.replace("Protected", { screen: "AmsDashboard" });
         } else {
           let listAttendance = [];
           let redirect = () => navigation.navigate("AttendanceScreen");

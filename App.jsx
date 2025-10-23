@@ -13,7 +13,7 @@ import OtpScreen from "./screens/authentication/OtpScreen";
 import PhoneScreen from "./screens/authentication/PhoneScreen";
 import PinLoginScreen from "./screens/authentication/PinLoginScreen";
 import PinSetupScreen from "./screens/authentication/PinSetupScreen";
-import Dashboard from "./screens/protected/index";
+import OldDashboard from "./screens/protected/index";
 import ProfileScreen from "./screens/protected/pages/Profile";
 import OrderDetails from "./screens/protected/pages/SingleOrder";
 import CreateOrderScreen from "./screens/protected/pages/CreateOrder";
@@ -27,6 +27,18 @@ import { Provider } from "react-redux";
 import { store } from "./redux/store";
 import DOAList from "./screens/page/checkIn/DOAList";
 import DaySummary from "./screens/protected/pages/DaySummary";
+// import BottomTabNavigation from "./components/BottomTabNavigation";
+import ASMDashboard from "./screens/protected/asm/ASMDashboard";
+import MyTeam from "./screens/protected/asm/MyTeam";
+// import ASMBottomTabNavigation from "./components/ASMBottomTabNavigation";
+import ASMTargetsScreen from "./screens/protected/asm/ASMTargetsScreen";
+import UserProfileDetails from "./screens/protected/asm/UserProfileDetails";
+import UserPerformance from "./screens/protected/asm/performance/UserPerformance";
+import ASMLiveScreen from "./screens/protected/asm/ASMLiveScreen";
+import ASMOrdersScreen from "./screens/protected/asm/ASMOrdersScreen";
+import ASMAttendanceScreen from "./screens/protected/asm/ASMAttendanceScreen";
+import ASMDOAScreen from "./screens/protected/asm/ASMDOAScreen";
+import AddShop from "./screens/protected/pages/AddShop";
 
 const Stack = createNativeStackNavigator();
 
@@ -98,9 +110,11 @@ export default function App() {
 function ProtectedStack({ location, setLocation }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* <Stack.Screen name="AsmDashboard" component={BottomTabNavigation} /> */}
+      <Stack.Screen name="AsmDashboard" component={ASMDashboard} />
       <Stack.Screen name="Dashboard">
         {(props) => (
-          <Dashboard
+          <OldDashboard
             {...props}
             setLocation={setLocation}
             location={location}
@@ -118,6 +132,16 @@ function ProtectedStack({ location, setLocation }) {
       <Stack.Screen name="ClientList" component={ClientList} />
       <Stack.Screen name="DOAList" component={DOAList} />
       <Stack.Screen name="DaySummary" component={DaySummary} />
+      <Stack.Screen name="ASMDashboard" component={ASMDashboard} />
+      <Stack.Screen name="MyTeam" component={MyTeam} />
+      <Stack.Screen name="ASMAttendance" component={ASMAttendanceScreen} />
+      <Stack.Screen name="ASMOrders" component={ASMOrdersScreen} />
+      <Stack.Screen name="ASMDOA" component={ASMDOAScreen} />
+      <Stack.Screen name="ASMLive" component={ASMLiveScreen} />
+      <Stack.Screen name="ASMTargets" component={ASMTargetsScreen} />
+      <Stack.Screen name="UserProfileDetails" component={UserProfileDetails} />
+      <Stack.Screen name="UserPerformance" component={UserPerformance} />
+      <Stack.Screen name="AddShop" component={AddShop} />
     </Stack.Navigator>
   );
 }
