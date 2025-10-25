@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import useAttendanceApis from "../../hooks/useAttendanceApis";
 import { compareDates, getDateInFormate } from "../../util/data";
 import { isTokenValid } from "../../util/baseData";
 import useAuthentication from "../../hooks/useAuthentication";
@@ -124,25 +123,32 @@ export default function PinLoginScreen({ navigation }) {
         }),
       ]).start();
 
-      const storedToken = await AsyncStorage.getItem("token");
-      const mobile = await AsyncStorage.getItem("phone");
-      const pinStored = await AsyncStorage.getItem("userPin");
-      const cName = await AsyncStorage.getItem("companyName");
-      setCompanyName(cName ?? "")
-      if (storedToken) {
-        let res = await isTokenValid(storedToken);
-        if (!res) {
-          let response = await handleGeneratePin({
-            mobile,
-            pinNumber: pinStored,
-            companyXID: 0,
-          });
-          if (response?.token) {
-            await AsyncStorage.setItem("token", response?.token);
-          } else {
-            Alert.alert("❌ Error", "Something went wrong!");
+      try {
+        setLoading(true);
+        const storedToken = await AsyncStorage.getItem("token");
+        const mobile = await AsyncStorage.getItem("phone");
+        const pinStored = await AsyncStorage.getItem("userPin");
+        const cName = await AsyncStorage.getItem("companyName");
+        setCompanyName(cName ?? "")
+        if (storedToken) {
+          let res = await isTokenValid(storedToken);
+          if (!res) {
+            let response = await handleGeneratePin({
+              mobile,
+              pinNumber: pinStored,
+              companyXID: 0,
+            });
+            if (response?.token) {
+              await AsyncStorage.setItem("token", response?.token);
+            } else {
+              Alert.alert("❌ Error", "Something went wrong!");
+            }
           }
         }
+      } catch (error) {
+        Alert.alert("❌ Error", "Failed to initialize");
+      } finally {
+        setLoading(false);
       }
     };
 

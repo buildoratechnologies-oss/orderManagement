@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   useGetAsmDashboardOverviewQuery,
+  useGetLiveLocationQuery,
   useGetUserOverviewQuery,
 } from "../../../redux/api/asmApiSlice";
 import { useDispatch } from "react-redux";
@@ -20,9 +22,11 @@ const { width } = Dimensions.get("window");
 
 export default function ASMDashboard({ navigation }) {
   const dispatch = useDispatch();
-  const { data: overviewData } = useGetAsmDashboardOverviewQuery();
-  const { data: overviewByIds } = useGetUserOverviewQuery();
+  const { data: overviewData, isLoading: isLoadingOverview } = useGetAsmDashboardOverviewQuery();
+  const { data: overviewByIds, isLoading: isLoadingUser } = useGetUserOverviewQuery();
   const [showAllActivities, setShowAllActivities] = useState(false);
+  
+  const isLoading = isLoadingOverview || isLoadingUser;
 
 
   useEffect(() => {
@@ -123,10 +127,17 @@ export default function ASMDashboard({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Team Management Overview</Text>
-      </View>
+    <View style={styles.container}>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
+      )}
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Team Management Overview</Text>
+        </View>
 
       {/* Quick Stats */}
       <View style={styles.statsContainer}>
@@ -203,7 +214,7 @@ export default function ASMDashboard({ navigation }) {
             icon="document-text-outline"
             color="#EF4444"
             onPress={() => navigation.navigate("ASMDOA")}
-            badge={dashboardStats.pendingDOA}
+            // badge={dashboardStats.pendingDOA}
           />
         </View>
 
@@ -282,7 +293,8 @@ export default function ASMDashboard({ navigation }) {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -497,5 +509,22 @@ const styles = StyleSheet.create({
   },
   modalScroll: {
     paddingHorizontal: 20,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });

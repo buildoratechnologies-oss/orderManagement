@@ -52,7 +52,7 @@ export default function DOAPage() {
   // Filter and search states
   const [searchText, setSearchText] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState('from'); // 'from' or 'to'
+  const [datePickerMode, setDatePickerMode] = useState("from"); // 'from' or 'to'
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [filteredDoaList, setFilteredDoaList] = useState([]);
@@ -69,20 +69,27 @@ export default function DOAPage() {
 
     // Apply search filter
     if (searchText.trim()) {
-      filtered = filtered.filter(item => 
-        (item.companyName || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (item.itemName || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (item.reportIssue || '').toLowerCase().includes(searchText.toLowerCase())
+      filtered = filtered.filter(
+        (item) =>
+          (item.companyName || "")
+            .toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          (item.itemName || "")
+            .toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          (item.reportIssue || "")
+            .toLowerCase()
+            .includes(searchText.toLowerCase())
       );
     }
 
     // Apply date filter
     if (fromDate || toDate) {
-      filtered = filtered.filter(item => {
+      filtered = filtered.filter((item) => {
         const itemDate = new Date(item.reportedDate);
         const from = fromDate ? new Date(fromDate) : null;
         const to = toDate ? new Date(toDate) : null;
-        
+
         if (from && to) {
           return itemDate >= from && itemDate <= to;
         } else if (from) {
@@ -107,7 +114,7 @@ export default function DOAPage() {
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      if (datePickerMode === 'from') {
+      if (datePickerMode === "from") {
         setFromDate(selectedDate);
       } else {
         setToDate(selectedDate);
@@ -122,19 +129,27 @@ export default function DOAPage() {
 
   const getStatusColor = (statusXid) => {
     switch (statusXid) {
-      case 1: return '#f39c12'; // Pending
-      case 2: return '#27ae60'; // Approved
-      case 3: return '#e74c3c'; // Rejected
-      default: return '#95a5a6'; // Unknown
+      case 1:
+        return "#f39c12"; // Pending
+      case 2:
+        return "#27ae60"; // Approved
+      case 3:
+        return "#e74c3c"; // Rejected
+      default:
+        return "#95a5a6"; // Unknown
     }
   };
 
   const getStatusText = (statusXid) => {
     switch (statusXid) {
-      case 1: return 'Pending';
-      case 2: return 'Approved';
-      case 3: return 'Rejected';
-      default: return 'Unknown';
+      case 1:
+        return "Pending";
+      case 2:
+        return "Approved";
+      case 3:
+        return "Rejected";
+      default:
+        return "Unknown";
     }
   };
 
@@ -215,7 +230,7 @@ export default function DOAPage() {
         originalName: img.originalName,
         imagePath: img?.imagePath, // As per your format requirement
         docExtension: img.docExtension,
-        // lastEditByXid: img.lastEditByXid, 
+        // lastEditByXid: img.lastEditByXid,
       }));
       console.log(imagesData);
       await uploadDoaImageInfoMutation(imagesData);
@@ -303,10 +318,8 @@ export default function DOAPage() {
             asset.uri.split("/").pop() || `image_${Date.now()}_${index}.jpg`;
           const fileExtension =
             fileName.split(".").pop()?.toLowerCase() || "jpg";
-          const mimeType = `image/${
-            fileExtension === "jpg" ? "jpeg" : fileExtension
-          }`;
-
+          const mimeType = result?.mimeType;
+          console.log(result);
           return {
             itemXid: selectedItem?.itemXID || 0,
             typeOfDoc: "Asset",
@@ -355,7 +368,10 @@ export default function DOAPage() {
         </View> */}
         {isCheckIn && (
           <TouchableOpacity style={styles.addButton} onPress={handleAddDoa}>
-            <LinearGradient colors={['#4CAF50', '#45a049']} style={styles.addButtonGradient}>
+            <LinearGradient
+              colors={["#4CAF50", "#45a049"]}
+              style={styles.addButtonGradient}
+            >
               <Ionicons name="add" size={20} color="#fff" />
               <Text style={styles.addButtonText}>Add DOA</Text>
             </LinearGradient>
@@ -366,7 +382,12 @@ export default function DOAPage() {
       {/* Search and Filter Controls */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by company, item, or issue..."
@@ -375,20 +396,20 @@ export default function DOAPage() {
             onChangeText={setSearchText}
           />
           {searchText ? (
-            <TouchableOpacity onPress={() => setSearchText('')}>
+            <TouchableOpacity onPress={() => setSearchText("")}>
               <Ionicons name="close-circle" size={20} color="#666" />
             </TouchableOpacity>
           ) : null}
         </View>
-        
-        <TouchableOpacity 
-          style={styles.filterButton} 
+
+        <TouchableOpacity
+          style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Ionicons 
-            name={showFilters ? "filter" : "filter-outline"} 
-            size={20} 
-            color={showFilters ? "#667eea" : "#666"} 
+          <Ionicons
+            name={showFilters ? "filter" : "filter-outline"}
+            size={20}
+            color={showFilters ? "#667eea" : "#666"}
           />
         </TouchableOpacity>
       </View>
@@ -398,27 +419,27 @@ export default function DOAPage() {
         <View style={styles.filterContainer}>
           <Text style={styles.filterTitle}>Date Range Filter</Text>
           <View style={styles.dateFilterRow}>
-            <TouchableOpacity 
-              style={styles.dateButton} 
-              onPress={() => openDatePicker('from')}
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => openDatePicker("from")}
             >
               <Ionicons name="calendar-outline" size={16} color="#667eea" />
               <Text style={styles.dateButtonText}>
-                {fromDate ? fromDate.toLocaleDateString() : 'From Date'}
+                {fromDate ? fromDate.toLocaleDateString() : "From Date"}
               </Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.dateButton} 
-              onPress={() => openDatePicker('to')}
+
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => openDatePicker("to")}
             >
               <Ionicons name="calendar-outline" size={16} color="#667eea" />
               <Text style={styles.dateButtonText}>
-                {toDate ? toDate.toLocaleDateString() : 'To Date'}
+                {toDate ? toDate.toLocaleDateString() : "To Date"}
               </Text>
             </TouchableOpacity>
           </View>
-          
+
           {(fromDate || toDate || searchText) && (
             <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
               <Ionicons name="refresh-outline" size={16} color="#e74c3c" />
@@ -439,10 +460,15 @@ export default function DOAPage() {
           <View style={styles.emptyContainer}>
             <MaterialIcons name="assignment" size={64} color="#e0e0e0" />
             <Text style={styles.emptyText}>
-              {doaList.length === 0 ? 'No DOA Data Available' : 'No items match your filters'}
+              {doaList.length === 0
+                ? "No DOA Data Available"
+                : "No items match your filters"}
             </Text>
             {doaList.length > 0 && (
-              <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
+              <TouchableOpacity
+                style={styles.clearFiltersButton}
+                onPress={clearFilters}
+              >
                 <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
               </TouchableOpacity>
             )}
@@ -455,26 +481,36 @@ export default function DOAPage() {
             showsVerticalScrollIndicator={false}
             renderItem={({ item, index }) => (
               <TouchableOpacity
-                style={[
-                  styles.doaCard,
-                  { transform: [{ scale: 1 }] }
-                ]}
+                style={[styles.doaCard, { transform: [{ scale: 1 }] }]}
                 onPress={() => handleViewDetails(item)}
                 activeOpacity={0.8}
               >
-                <LinearGradient 
-                  colors={['#fff', '#f8f9ff']} 
+                <LinearGradient
+                  colors={["#fff", "#f8f9ff"]}
                   style={styles.cardGradient}
                 >
                   {/* Status Badge */}
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.requestStatusXid) }]}>
-                    <Text style={styles.statusText}>{getStatusText(item.requestStatusXid)}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor: getStatusColor(item.requestStatusXid),
+                      },
+                    ]}
+                  >
+                    <Text style={styles.statusText}>
+                      {getStatusText(item.requestStatusXid)}
+                    </Text>
                   </View>
 
                   {/* Card Header */}
                   <View style={styles.cardHeader}>
                     <View style={styles.cardIconContainer}>
-                      <MaterialIcons name="business" size={20} color="#667eea" />
+                      <MaterialIcons
+                        name="business"
+                        size={20}
+                        color="#667eea"
+                      />
                     </View>
                     <View style={styles.cardTitleContainer}>
                       <Text style={styles.cardTitle} numberOfLines={1}>
@@ -489,15 +525,23 @@ export default function DOAPage() {
                   {/* Card Content */}
                   <View style={styles.cardContent}>
                     <View style={styles.cardInfoRow}>
-                      <Ionicons name="calendar-outline" size={16} color="#666" />
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color="#666"
+                      />
                       <Text style={styles.cardInfoText}>
                         {new Date(item.reportedDate).toLocaleDateString()}
                       </Text>
                     </View>
-                    
+
                     {item.reportIssue && (
                       <View style={styles.cardInfoRow}>
-                        <Ionicons name="warning-outline" size={16} color="#f39c12" />
+                        <Ionicons
+                          name="warning-outline"
+                          size={16}
+                          color="#f39c12"
+                        />
                         <Text style={styles.cardInfoText} numberOfLines={2}>
                           {item.reportIssue}
                         </Text>
@@ -508,7 +552,11 @@ export default function DOAPage() {
                   {/* Card Footer */}
                   <View style={styles.cardFooter}>
                     <Text style={styles.viewMore}>Tap for details</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#667eea" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="#667eea"
+                    />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -520,7 +568,11 @@ export default function DOAPage() {
       {/* Date Picker Modal */}
       {showDatePicker && (
         <DateTimePicker
-          value={datePickerMode === 'from' ? (fromDate || new Date()) : (toDate || new Date())}
+          value={
+            datePickerMode === "from"
+              ? fromDate || new Date()
+              : toDate || new Date()
+          }
           mode="date"
           display="default"
           onChange={handleDateChange}
@@ -540,63 +592,104 @@ export default function DOAPage() {
                 <Ionicons name="close" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
               {selectedDoa && (
                 <View style={styles.detailsContainer}>
                   <View style={styles.detailRow}>
-                    <MaterialIcons name="business" size={20} color="#667eea" style={styles.detailIcon} />
+                    <MaterialIcons
+                      name="business"
+                      size={20}
+                      color="#667eea"
+                      style={styles.detailIcon}
+                    />
                     <Text style={styles.detailText}>
                       <Text style={styles.boldText}>Company: </Text>
                       {selectedDoa.companyName ?? "N/A"}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
-                    <MaterialIcons name="inventory" size={20} color="#28a745" style={styles.detailIcon} />
+                    <MaterialIcons
+                      name="inventory"
+                      size={20}
+                      color="#28a745"
+                      style={styles.detailIcon}
+                    />
                     <Text style={styles.detailText}>
                       <Text style={styles.boldText}>Item: </Text>
                       {selectedDoa.itemName ?? "N/A"}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
-                    <Ionicons name="calendar" size={20} color="#f39c12" style={styles.detailIcon} />
+                    <Ionicons
+                      name="calendar"
+                      size={20}
+                      color="#f39c12"
+                      style={styles.detailIcon}
+                    />
                     <Text style={styles.detailText}>
                       <Text style={styles.boldText}>Reported: </Text>
-                      {new Date(selectedDoa.reportedDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {new Date(selectedDoa.reportedDate).toLocaleDateString(
+                        "en-US",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.detailRow}>
-                    <Ionicons name="flag" size={20} color={getStatusColor(selectedDoa.requestStatusXid)} style={styles.detailIcon} />
+                    <Ionicons
+                      name="flag"
+                      size={20}
+                      color={getStatusColor(selectedDoa.requestStatusXid)}
+                      style={styles.detailIcon}
+                    />
                     <Text style={styles.detailText}>
                       <Text style={styles.boldText}>Status: </Text>
-                      <Text style={{color: getStatusColor(selectedDoa.requestStatusXid), fontWeight: '600'}}>
+                      <Text
+                        style={{
+                          color: getStatusColor(selectedDoa.requestStatusXid),
+                          fontWeight: "600",
+                        }}
+                      >
                         {getStatusText(selectedDoa.requestStatusXid) ?? "N/A"}
                       </Text>
                     </Text>
                   </View>
-                  
+
                   {selectedDoa.reportIssue && (
                     <View style={styles.detailRow}>
-                      <Ionicons name="warning" size={20} color="#dc3545" style={styles.detailIcon} />
+                      <Ionicons
+                        name="warning"
+                        size={20}
+                        color="#dc3545"
+                        style={styles.detailIcon}
+                      />
                       <Text style={styles.detailText}>
                         <Text style={styles.boldText}>Issue: </Text>
                         {selectedDoa.reportIssue}
                       </Text>
                     </View>
                   )}
-                  
+
                   {selectedDoa.remarks && (
                     <View style={styles.detailRow}>
-                      <Ionicons name="chatbox" size={20} color="#6f42c1" style={styles.detailIcon} />
+                      <Ionicons
+                        name="chatbox"
+                        size={20}
+                        color="#6f42c1"
+                        style={styles.detailIcon}
+                      />
                       <Text style={styles.detailText}>
                         <Text style={styles.boldText}>Remarks: </Text>
                         {selectedDoa.remarks}
@@ -605,7 +698,7 @@ export default function DOAPage() {
                   )}
                 </View>
               )}
-              
+
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setDetailsPopupVisible(false)}
@@ -633,8 +726,11 @@ export default function DOAPage() {
                 <Ionicons name="close" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
               {loadingOrders ? (
                 <View style={styles.emptyStateContainer}>
                   <ActivityIndicator size="large" color="#667eea" />
@@ -642,9 +738,16 @@ export default function DOAPage() {
                 </View>
               ) : ordersData?.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
-                  <MaterialIcons name="inbox" size={64} color="#e0e0e0" style={styles.emptyStateIcon} />
+                  <MaterialIcons
+                    name="inbox"
+                    size={64}
+                    color="#e0e0e0"
+                    style={styles.emptyStateIcon}
+                  />
                   <Text style={styles.emptyStateText}>No Orders Available</Text>
-                  <Text style={styles.emptyStateSubtext}>There are currently no orders to display</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    There are currently no orders to display
+                  </Text>
                 </View>
               ) : (
                 ordersData.map((item, index) => (
@@ -654,16 +757,33 @@ export default function DOAPage() {
                     onPress={() => handleOrderSelect(item)}
                     activeOpacity={0.7}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <MaterialIcons name="business" size={18} color="#667eea" style={{ marginRight: 8 }} />
-                      <Text style={styles.modalItemText}>{item.clientCompanyName}</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <MaterialIcons
+                        name="business"
+                        size={18}
+                        color="#667eea"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.modalItemText}>
+                        {item.clientCompanyName}
+                      </Text>
                     </View>
-                    <Text style={styles.modalItemSubtext}>PO: {item.purchaseOrder}</Text>
-                    <Text style={styles.modalItemSubtext}>Total: ₹{item.sumOfInvoice}</Text>
+                    <Text style={styles.modalItemSubtext}>
+                      PO: {item.purchaseOrder}
+                    </Text>
+                    <Text style={styles.modalItemSubtext}>
+                      Total: ₹{item.sumOfInvoice}
+                    </Text>
                   </TouchableOpacity>
                 ))
               )}
-              
+
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => {
@@ -694,8 +814,11 @@ export default function DOAPage() {
                 <Ionicons name="close" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
               {loadingItems ? (
                 <View style={styles.emptyStateContainer}>
                   <ActivityIndicator size="large" color="#667eea" />
@@ -703,9 +826,16 @@ export default function DOAPage() {
                 </View>
               ) : itemsData?.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
-                  <MaterialIcons name="inventory" size={64} color="#e0e0e0" style={styles.emptyStateIcon} />
+                  <MaterialIcons
+                    name="inventory"
+                    size={64}
+                    color="#e0e0e0"
+                    style={styles.emptyStateIcon}
+                  />
                   <Text style={styles.emptyStateText}>No Items Available</Text>
-                  <Text style={styles.emptyStateSubtext}>No items found for this order</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    No items found for this order
+                  </Text>
                 </View>
               ) : (
                 itemsData.map((item, index) => (
@@ -715,20 +845,37 @@ export default function DOAPage() {
                     onPress={() => handleItemSelect(item)}
                     activeOpacity={0.7}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <MaterialIcons name="inventory" size={18} color="#28a745" style={{ marginRight: 8 }} />
-                      <Text style={styles.modalItemText}>{item.description}</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <MaterialIcons
+                        name="inventory"
+                        size={18}
+                        color="#28a745"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.modalItemText}>
+                        {item.description}
+                      </Text>
                     </View>
                     {item.quantity && (
-                      <Text style={styles.modalItemSubtext}>Qty: {item.quantity}</Text>
+                      <Text style={styles.modalItemSubtext}>
+                        Qty: {item.quantity}
+                      </Text>
                     )}
                     {item.rate && (
-                      <Text style={styles.modalItemSubtext}>Rate: ₹{item.rate}</Text>
+                      <Text style={styles.modalItemSubtext}>
+                        Rate: ₹{item.rate}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 ))
               )}
-              
+
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => {
@@ -760,24 +907,37 @@ export default function DOAPage() {
                 <Ionicons name="close" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Selected Information Card */}
               <View style={styles.selectedInfoCard}>
                 <View style={styles.selectedInfoRow}>
-                  <MaterialIcons name="inventory" size={20} color="#007bff" style={styles.selectedInfoIcon} />
+                  <MaterialIcons
+                    name="inventory"
+                    size={20}
+                    color="#007bff"
+                    style={styles.selectedInfoIcon}
+                  />
                   <Text style={styles.selectedInfoText}>
-                    {selectedItem?.description || 'Unknown Item'}
+                    {selectedItem?.description || "Unknown Item"}
                   </Text>
                 </View>
                 <View style={styles.selectedInfoRow}>
-                  <MaterialIcons name="business" size={20} color="#007bff" style={styles.selectedInfoIcon} />
+                  <MaterialIcons
+                    name="business"
+                    size={20}
+                    color="#007bff"
+                    style={styles.selectedInfoIcon}
+                  />
                   <Text style={styles.selectedInfoText}>
-                    {selectedOrder?.clientCompanyName || 'Unknown Client'}
+                    {selectedOrder?.clientCompanyName || "Unknown Client"}
                   </Text>
                 </View>
               </View>
-              
+
               {/* Report Issue Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Report Issue *</Text>
@@ -792,7 +952,7 @@ export default function DOAPage() {
                   textAlignVertical="top"
                 />
               </View>
-              
+
               {/* Remarks Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Remarks</Text>
@@ -865,26 +1025,42 @@ export default function DOAPage() {
                 <TouchableOpacity
                   style={[
                     styles.submitButton,
-                    (submitting || isUploading || !reportIssue.trim()) && styles.submitButtonDisabled
+                    (submitting || isUploading || !reportIssue.trim()) &&
+                      styles.submitButtonDisabled,
                   ]}
                   onPress={handleFormSubmit}
                   disabled={submitting || isUploading || !reportIssue.trim()}
                 >
                   {submitting || isUploading ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      <ActivityIndicator
+                        size="small"
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
                       <Text style={styles.submitButtonText}>
-                        {isUploading ? 'Uploading...' : 'Submitting...'}
+                        {isUploading ? "Uploading..." : "Submitting..."}
                       </Text>
                     </View>
                   ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                      <Text style={styles.submitButtonText}>Submit DOA Request</Text>
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.submitButtonText}>
+                        Submit DOA Request
+                      </Text>
                     </View>
                   )}
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => {
@@ -907,12 +1083,12 @@ export default function DOAPage() {
 const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#fff',
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
     paddingTop: 5,
   },
-  
+
   // Header Styles
   header: {
     flexDirection: "row",
@@ -929,9 +1105,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
     color: "#333",
     marginLeft: 8,
   },
@@ -942,7 +1118,7 @@ const styles = StyleSheet.create({
   },
   addButton: {
     borderRadius: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   addButtonGradient: {
     flexDirection: "row",
@@ -950,13 +1126,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  addButtonText: { 
-    color: "#fff", 
-    fontWeight: "bold", 
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 14,
     marginLeft: 4,
   },
-  
+
   // Search and Filter Styles
   searchContainer: {
     flexDirection: "row",
@@ -991,7 +1167,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e1e5ff",
   },
-  
+
   // Filter Container
   filterContainer: {
     backgroundColor: "#f8f9ff",
@@ -1043,7 +1219,7 @@ const styles = StyleSheet.create({
     color: "#e74c3c",
     fontWeight: "500",
   },
-  
+
   // List Container
   listContainer: {
     flex: 1,
@@ -1052,7 +1228,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 20,
   },
-  
+
   // Loading and Empty States
   loadingContainer: {
     flex: 1,
@@ -1089,12 +1265,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  
+
   // Enhanced Card Styles
   doaCard: {
     marginBottom: 16,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1165,16 +1341,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
   },
-  viewMore: { 
-    color: "#667eea", 
-    fontSize: 14, 
+  viewMore: {
+    color: "#667eea",
+    fontSize: 14,
     fontWeight: "500",
   },
-  
+
   // Enhanced Modal Styles
-  boldText: { 
+  boldText: {
     fontWeight: "700",
-    color: "#2c3e50"
+    color: "#2c3e50",
   },
   modalOverlay: {
     flex: 1,
@@ -1184,7 +1360,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: "#fff",
-    width: width * 0.90,
+    width: width * 0.9,
     borderRadius: 20,
     padding: 0,
     maxHeight: height * 0.8,
@@ -1236,8 +1412,8 @@ const styles = StyleSheet.create({
   detailIcon: {
     marginRight: 12,
   },
-  detailText: { 
-    fontSize: 16, 
+  detailText: {
+    fontSize: 16,
     color: "#495057",
     flex: 1,
     lineHeight: 24,
@@ -1250,8 +1426,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e9ecef",
   },
-  modalItemText: { 
-    fontSize: 16, 
+  modalItemText: {
+    fontSize: 16,
     color: "#2c3e50",
     fontWeight: "500",
     lineHeight: 22,
@@ -1274,8 +1450,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  modalCloseButtonText: { 
-    color: "#fff", 
+  modalCloseButtonText: {
+    color: "#fff",
     fontWeight: "600",
     fontSize: 16,
   },
@@ -1343,13 +1519,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#6c757d",
     elevation: 1,
   },
-  submitButtonText: { 
-    color: "#fff", 
+  submitButtonText: {
+    color: "#fff",
     fontWeight: "700",
     fontSize: 16,
   },
-  label: { 
-    fontSize: 16, 
+  label: {
+    fontSize: 16,
     marginBottom: 12,
     color: "#495057",
     lineHeight: 24,

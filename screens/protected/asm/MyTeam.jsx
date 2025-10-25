@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { useSelector } from "react-redux";
 import { useGetMyTeamQuery } from "../../../redux/api/asmApiSlice";
 
 export default function MyTeam({ navigation }) {
@@ -18,38 +18,81 @@ export default function MyTeam({ navigation }) {
   const [selectedFilter, setSelectedFilter] = useState("all"); // all, active, inactive
 
   const { data: myTeamList, isLoading, error } = useGetMyTeamQuery();
+  const { asmUserOverview } = useSelector((state) => state.asmSliceState);
+
+  // Helper function to check if user is present today
+  const checkTodayAttendance = (pid) => {
+    const userAttendance = asmUserOverview?.userAttendances?.find(
+      (user) => user.pid === pid
+    );
+    if (
+      !userAttendance ||
+      !userAttendance.userAttedance ||
+      userAttendance.userAttedance.length === 0
+    ) {
+      return { isPresent: false, attendanceCount: 0 };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if user has checked in today
+    const todayAttendance = userAttendance.userAttedance.find((att) => {
+      const checkInDate = new Date(att.checkInTime);
+      checkInDate.setHours(0, 0, 0, 0);
+      return checkInDate.getTime() === today.getTime();
+    });
+
+    return {
+      isPresent: !!todayAttendance,
+      attendanceCount: userAttendance.userAttedance.length,
+      checkInTime: todayAttendance?.checkInTime,
+      checkOutTime: todayAttendance?.checkOutTime,
+    };
+  };
 
   // Transform API data to expected format
   useEffect(() => {
     if (myTeamList && Array.isArray(myTeamList)) {
-      const transformedData = myTeamList.map((member) => ({
-        pid: member.pid,
-        userXid:
-          member.pid?.toString() ||
-          `USR${member.branches?.lastEditByXid}`,
-        cbXid: member.branches?.pid?.toString() || `USR${member.branches.pid}`,
-        displayname: `${member.firstName} ${member.lastName}`.trim(),
-        firstName: member.firstName,
-        lastName: member.lastName,
-        email: member.email,
-        phone: member.mobile,
-        nameEng: member.nameEng, // Company name
-        imageUrl: member.imageUrl,
-        // Default values for missing fields
-        designation: "Sales Executive", // Default designation
-        status: "active", // Default to active
-        lastActive: "Recently",
-        totalOrders: Math.floor(Math.random() * 100) + 1, // Random for demo
-        monthlyOrders: Math.floor(Math.random() * 20) + 1,
-        attendanceRate: Math.floor(Math.random() * 40) + 60, // 60-100%
-        currentLocation: member.nameEng || "Office",
-        targetAchievement: Math.floor(Math.random() * 60) + 40, // 40-100%
-        role: "Sales Executive",
-      }));
+      const transformedData = myTeamList.map((member) => {
+        const attendanceInfo = checkTodayAttendance(member.pid);
+
+        return {
+          pid: member.pid,
+          userXid:
+            member.pid?.toString() || `USR${member.branches?.lastEditByXid}`,
+          cbXid:
+            member.branches?.pid?.toString() || `USR${member.branches.pid}`,
+          displayname: `${member.firstName} ${member.lastName}`.trim(),
+          firstName: member.firstName,
+          lastName: member.lastName,
+          email: member.email,
+          phone: member.mobile,
+          long: member?.branches?.long,
+          lat: member?.branches?.lat,
+          nameEng: member.nameEng, // Company name
+          imageUrl: member.imageUrl,
+          // Default values for missing fields
+          designation: "Sales Executive", // Default designation
+          // status: "active", // Default to active
+          lastActive: "Recently",
+          totalOrders: Math.floor(Math.random() * 100) + 1, // Random for demo
+          monthlyOrders: Math.floor(Math.random() * 20) + 1,
+          attendanceRate: Math.floor(Math.random() * 40) + 60, // 60-100%
+          currentLocation: member.nameEng || "Office",
+          targetAchievement: Math.floor(Math.random() * 60) + 40, // 40-100%
+          role: "Sales Executive",
+          // Attendance info from Redux
+          isPresent: attendanceInfo.isPresent,
+          attendanceCount: attendanceInfo.attendanceCount,
+          checkInTime: attendanceInfo.checkInTime,
+          checkOutTime: attendanceInfo.checkOutTime,
+        };
+      });
 
       setTeamMembers(transformedData);
     }
-  }, [myTeamList]);
+  }, [myTeamList, asmUserOverview]);
 
   // Filter members based on search query and selected filter
   useEffect(() => {
@@ -77,13 +120,6 @@ export default function MyTeam({ navigation }) {
 
     setFilteredMembers(filtered);
   }, [searchQuery, teamMembers, selectedFilter]);
-
-  const navigateToMemberDetail = (member) => {
-    console.log(member);
-    navigation.navigate("UserProfileDetails", {
-      user: member,
-    });
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -147,7 +183,32 @@ export default function MyTeam({ navigation }) {
           </Text>
         </View>
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{member.displayname}</Text>
+          <View style={styles.nameAndAttendanceRow}>
+            <Text style={styles.memberName}>{member.displayname}</Text>
+            <View
+              style={[
+                styles.attendanceBadge,
+                {
+                  backgroundColor: member.isPresent ? "#10B98120" : "#EF444420",
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.attendanceDot,
+                  { backgroundColor: member.isPresent ? "#10B981" : "#EF4444" },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.attendanceText,
+                  { color: member.isPresent ? "#10B981" : "#EF4444" },
+                ]}
+              >
+                {member.isPresent ? "Present" : "Absent"}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.memberEmail}>{member.email}</Text>
           <View style={styles.memberMeta}>
             <Text style={styles.memberXid}>ID: {member.userXid}</Text>
@@ -191,28 +252,6 @@ export default function MyTeam({ navigation }) {
           </View>
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{member.monthlyOrders}</Text>
-            <Text style={styles.statLabel}>Monthly</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{member.attendanceRate}%</Text>
-            <Text style={styles.statLabel}>Attendance</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text
-              style={[
-                styles.statValue,
-                { color: getTargetColor(member.targetAchievement) },
-              ]}
-            >
-              {member.targetAchievement}%
-            </Text>
-            <Text style={styles.statLabel}>Target</Text>
-          </View>
-        </View>
-
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={14} color="#9CA3AF" />
           <Text style={styles.locationText}>{member.currentLocation}</Text>
@@ -224,7 +263,9 @@ export default function MyTeam({ navigation }) {
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             style={[styles.actionButton, styles.profileButton]}
-            onPress={() => navigation.navigate("UserProfileDetails", { user: member })}
+            onPress={() =>
+              navigation.navigate("UserProfileDetails", { user: member })
+            }
           >
             <Ionicons name="person-outline" size={16} color="#3B82F6" />
             <Text style={styles.profileButtonText}>Profile</Text>
@@ -232,7 +273,9 @@ export default function MyTeam({ navigation }) {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.performanceButton]}
-            onPress={() => navigation.navigate("UserPerformance", { user: member })}
+            onPress={() =>
+              navigation.navigate("UserPerformance", { user: member })
+            }
           >
             <Ionicons name="stats-chart-outline" size={16} color="#10B981" />
             <Text style={styles.performanceButtonText}>Performance</Text>
@@ -275,24 +318,6 @@ export default function MyTeam({ navigation }) {
             <Ionicons name="close-circle" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         )}
-      </View>
-
-      <View style={styles.filterContainer}>
-        <FilterButton
-          title="All"
-          value="all"
-          active={selectedFilter === "all"}
-        />
-        <FilterButton
-          title="Active"
-          value="active"
-          active={selectedFilter === "active"}
-        />
-        <FilterButton
-          title="Inactive"
-          value="inactive"
-          active={selectedFilter === "inactive"}
-        />
       </View>
 
       <FlatList
@@ -362,11 +387,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#111827",
   },
-  filterContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
+
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -424,11 +445,35 @@ const styles = StyleSheet.create({
   memberInfo: {
     flex: 1,
   },
+  nameAndAttendanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
   memberName: {
     fontSize: 16,
     fontWeight: "600",
     color: "#111827",
-    marginBottom: 2,
+    flex: 1,
+  },
+  attendanceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  attendanceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  attendanceText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   memberEmail: {
     fontSize: 14,
@@ -472,24 +517,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 12,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
+
   locationRow: {
     flexDirection: "row",
     alignItems: "center",

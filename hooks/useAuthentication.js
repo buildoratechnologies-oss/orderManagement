@@ -42,7 +42,7 @@ const useAuthentication = () => {
       throw error;
     }
   };
-  
+
   const handleVerifyOtp = async (payload) => {
     let response = await axios.post(GetBaseApiUrl("Accounts/"), payload);
     if (response.statusCode != 400) {
@@ -67,14 +67,22 @@ const useAuthentication = () => {
   // Email + Password login (endpoint name may vary on backend)
   const handleLoginWithEmailPassword = async (payload) => {
     try {
-      const url = GetBaseApiUrl("Accounts/Login"); // Adjust if backend uses a different route
-      const response = await axios.post(url, { ...payload }, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const url = GetBaseApiUrl("Accounts"); // Adjust if backend uses a different route
+      const response = await axios.post(
+        url,
+        { ...payload, username: payload?.email },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      console.log(response)
       if (response?.data) return response.data;
       return false;
     } catch (error) {
-      console.error("❌ Email login error:", error);
+      console.error("❌ Email login error:", error?.response?.data?.message);
+      if(error?.response?.data?.statusCode==400){
+        return {error:error?.response?.data?.message}
+      }
       throw error;
     }
   };

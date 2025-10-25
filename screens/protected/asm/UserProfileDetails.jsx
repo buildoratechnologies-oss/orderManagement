@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Linking,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useGetUserOverviewByIdQuery, useGetUserOverviewQuery } from "../../../redux/api/asmApiSlice";
+import { useGetUserOverviewByIdQuery } from "../../../redux/api/asmApiSlice";
 
 const { width } = Dimensions.get("window");
 
@@ -50,10 +52,36 @@ export default function UserProfileDetails({ route, navigation }) {
     }
   };
 
-  const getTargetColor = (achievement) => {
-    if (achievement >= 100) return "#10B981";
-    if (achievement >= 80) return "#F59E0B";
-    return "#EF4444";
+  const handleCall = () => {
+    if (user.phone) {
+      Linking.openURL(`tel:${user.phone}`);
+    } else {
+      Alert.alert("No Phone Number", "Phone number is not available for this user.");
+    }
+  };
+
+  const handleEmail = () => {
+    if (user.email) {
+      Linking.openURL(`mailto:${user.email}`);
+    } else {
+      Alert.alert("No Email", "Email is not available for this user.");
+    }
+  };
+
+  const handleTrack = () => {
+    // const latitude = overviewById?.salesExecutiveLiveLocations?.latitude;
+    // const longitude = overviewById?.salesExecutiveLiveLocations?.longitude;
+
+    if (user?.lat && user?.long) {
+      // Open in Google Maps
+      const url = `https://www.google.com/maps/search/?api=1&query=${user?.lat},${user?.long}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert(
+        "Location Unavailable",
+        "Location data is not available for this user."
+      );
+    }
   };
 
   const InfoCard = ({ title, children }) => (
@@ -236,64 +264,26 @@ export default function UserProfileDetails({ route, navigation }) {
         />
       </InfoCard>
 
-      {/* Recent Activity */}
-      {/* <InfoCard title="Recent Activity">
-        <View style={styles.activityList}>
-          {overviewById?.salesOrders && overviewById.salesOrders.length > 0 ? (
-            overviewById.salesOrders.slice(0, 5).map((order, index) => {
-              const orderDate = new Date(order.invoiceCreatedOn);
-              const now = new Date();
-              const diffMs = now - orderDate;
-              const diffMins = Math.floor(diffMs / 60000);
-              const diffHours = Math.floor(diffMins / 60);
-              const diffDays = Math.floor(diffHours / 24);
-
-              let timeAgo = "";
-              if (diffDays > 0) {
-                timeAgo = `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-              } else if (diffHours > 0) {
-                timeAgo = `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-              } else if (diffMins > 0) {
-                timeAgo = `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
-              } else {
-                timeAgo = "Just now";
-              }
-
-              return (
-                <View key={order.pid} style={styles.activityItem}>
-                  <View
-                    style={[styles.activityDot, { backgroundColor: "#3B82F6" }]}
-                  />
-                  <View style={styles.activityContent}>
-                    <Text style={styles.activityText}>
-                      Order created for {order.clientCompanyName}
-                    </Text>
-                    <Text style={styles.activityTime}>{timeAgo}</Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <View style={styles.activityItem}>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>No recent activity</Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </InfoCard> */}
-
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={handleCall}
+        >
           <Ionicons name="call" size={20} color="#3B82F6" />
           <Text style={styles.secondaryButtonText}>Call</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={handleEmail}
+        >
           <Ionicons name="mail" size={20} color="#3B82F6" />
           <Text style={styles.secondaryButtonText}>Email</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={handleTrack}
+        >
           <Ionicons name="location" size={20} color="#3B82F6" />
           <Text style={styles.secondaryButtonText}>Track</Text>
         </TouchableOpacity>

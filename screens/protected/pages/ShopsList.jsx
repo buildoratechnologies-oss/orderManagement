@@ -24,9 +24,9 @@ import ClientDetailsModal from "./ClientDetailsModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { compareDates, getDateInFormate } from "../../../util/data";
 import { useNavigation } from "@react-navigation/native";
-import { 
+import {
   useGetClientsWithPlannedQuery,
-  useUpdateOutletLocationMutation 
+  useUpdateOutletLocationMutation,
 } from "../../../redux/api/protectedApiSlice";
 
 const DEFAULT_RADIUS_KM = 5;
@@ -47,7 +47,8 @@ const ShopsList = () => {
   const [plannedVisitsData, setPlannedVisitsData] = useState([]);
   const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const [showRadiusFilter, setShowRadiusFilter] = useState(false);
-  const [updateLocationModalVisible, setUpdateLocationModalVisible] = useState(false);
+  const [updateLocationModalVisible, setUpdateLocationModalVisible] =
+    useState(false);
   const [selectedClientForUpdate, setSelectedClientForUpdate] = useState(null);
 
   const navigation = useNavigation();
@@ -56,8 +57,9 @@ const ShopsList = () => {
     isLoading,
     refetch,
   } = useGetClientsWithPlannedQuery();
-  
-  const [updateOutletLocation, { isLoading: isUpdatingLocation }] = useUpdateOutletLocationMutation();
+
+  const [updateOutletLocation, { isLoading: isUpdatingLocation }] =
+    useUpdateOutletLocationMutation();
 
   const requestLocation = useCallback(async () => {
     setLoading(true);
@@ -419,16 +421,14 @@ const ShopsList = () => {
       };
 
       await updateOutletLocation(payload).unwrap();
-      
-      Alert.alert(
-        "Success",
-        "Location updated successfully!",
-        [{ text: "OK" }]
-      );
-      
+
+      Alert.alert("Success", "Location updated successfully!", [
+        { text: "OK" },
+      ]);
+
       setUpdateLocationModalVisible(false);
       setSelectedClientForUpdate(null);
-      
+
       // Refresh the list to show updated data
       refetch();
     } catch (error) {

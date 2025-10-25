@@ -176,7 +176,7 @@ const ClientDetailsModal = ({
 
       // Check if this is a planned visit and add planVisitDetailXid
       if (client?.dataType === "plannedVisit" || client?.planned) {
-        payload.PlanVisitDetailXID = client?.pid;
+        payload.PlanVisitDetailXID = client?.planVisitDetailXID;
       }
 
       const response = await handleUserShopVisitCheckIn(payload);
@@ -232,14 +232,16 @@ const ClientDetailsModal = ({
       const fileName = file.fileName || fileUri.split("/").pop();
       const fileType = file.mimeType || "image/jpeg";
       const fileExtension = fileName?.split(".").pop() || "jpg";
-
+console.log(file)
       // ✅ Construct fileInfo with Blob
       const fileInfo = {
+        Blob: fileUri,
         typeOfDoc: "Asset",
         savedName: fileName,
         originalName: fileName,
         imagePath: fileUri,
-        docExtension: fileType,
+        mimeType: fileType,
+        docExtension: `.${fileExtension}`,
       };
 
       await handleploadImageData(fileInfo);
@@ -268,15 +270,15 @@ const ClientDetailsModal = ({
       const fileType = file.mimeType || "image/jpeg";
       const fileExtension = fileName?.split(".").pop() || "jpg";
 
-      // ✅ Convert image to Blob
-      // const response = await fetch(fileUri);
-      // const blob = await response.blob();
+      // ✅ Construct fileInfo with Blob
       const fileInfo = {
+        Blob: file.uri,
         typeOfDoc: "Asset",
         savedName: fileName,
         originalName: fileName,
         imagePath: file.uri,
-        docExtension: fileType,
+        mimeType: fileType,
+        docExtension: `.${fileExtension}`,
       };
       await handleploadImageData(fileInfo);
 

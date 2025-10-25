@@ -43,6 +43,11 @@ export const asmApiSlice = createApi({
       query: (id) => `ASMDashboardReport/GetUsersOverViewByASM`,
       providesTags: ["getUserOverview"],
     }),
+
+    getLiveLocation: builder.query({
+      query: (id) => `ASMDashboardReport/GetUsersLiveTrackingForASM`,
+      providesTags: ["getLiveLocation"],
+    }),
   }),
 });
 
@@ -52,5 +57,7 @@ export const {
   useGetAllOrdersQuery,
   useGetAsmDashboardOverviewQuery,
   useGetUserOverviewByIdQuery,
-  useGetUserOverviewQuery
+  useGetUserOverviewQuery,
+
+  useGetLiveLocationQuery
 } = asmApiSlice;
