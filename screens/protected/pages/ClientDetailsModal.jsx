@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CommonActions, useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,7 +12,12 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Animated,
+  Easing,
 } from "react-native";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import * as ImagePicker from "expo-image-picker";
 import useAttendanceApis from "../../../hooks/useAttendanceApis";
@@ -39,6 +44,33 @@ const ClientDetailsModal = ({
   const [checkInId, setCheckInId] = useState(null);
 
   const [uploadCheckInImageInfo] = useUploadCheckInImageInfoMutation();
+
+  // Premium entry animation
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.95);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
 
   if (!client) return null;
 
@@ -256,13 +288,25 @@ const ClientDetailsModal = ({
 
   return (
     <Modal
-      animationType="slide"
+      animationType="none"
       transparent
       visible={visible}
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
+          ]}
+        >
+          <LinearGradient
+            colors={["#0ea5e9", "#8b5cf6", "#ec4899"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.premiumTopBar}
+          />
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.headerContent}>
@@ -283,6 +327,17 @@ const ClientDetailsModal = ({
                 <Text style={styles.modalSubtitle}>
                   {displayCompany || "User Details"}
                 </Text>
+              </View>
+              <View style={styles.premiumBadge}>
+                <LinearGradient
+                  colors={["#fde68a", "#f59e0b"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.premiumBadgeBg}
+                >
+                  <Icon name="crown" size={14} color="#1f2937" />
+                  <Text style={styles.premiumBadgeText}>Premium</Text>
+                </LinearGradient>
               </View>
             </View>
             <Pressable style={styles.closeButton} onPress={onClose}>
@@ -575,28 +630,38 @@ const ClientDetailsModal = ({
             </Pressable>
 
             <Pressable
-              style={[styles.primaryButton, loading && styles.buttonDisabled]}
-              onPress={handleCheckIn}
+              style={[styles.primaryButtonWrapper, loading && styles.buttonDisabled]}
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                handleCheckIn();
+              }}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Icon name="login" size={18} color="#fff" />
-                  <Text style={styles.primaryButtonText}>Check In</Text>
-                </>
-              )}
+              <LinearGradient
+                colors={["#8b5cf6", "#06b6d4"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryButton}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Icon name="login" size={18} color="#fff" />
+                    <Text style={styles.primaryButtonText}>Check In</Text>
+                  </>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
 
       {/* Upload Photo Modal */}
       <Modal
         transparent
         visible={uploadModal}
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => {
           Alert.alert(
             "Photo Required",
@@ -605,7 +670,14 @@ const ClientDetailsModal = ({
         }}
       >
         <View style={styles.uploadOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.uploadContainer}>
+            <LinearGradient
+              colors={["#0ea5e9", "#8b5cf6", "#ec4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.premiumTopBar}
+            />
             {/* Upload Header */}
             <View style={styles.uploadHeader}>
               <View style={styles.uploadHeaderContent}>
@@ -641,6 +713,12 @@ const ClientDetailsModal = ({
                 onPress={pickImage}
                 disabled={isUploading}
               >
+                <LinearGradient
+                  colors={["#f3f4f6", "#eef2ff"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
                 <Icon name="folder-image" size={24} color="#6366f1" />
                 <Text style={styles.uploadOptionText}>Choose from Gallery</Text>
                 <Icon name="chevron-right" size={16} color="#6b7280" />
@@ -654,6 +732,12 @@ const ClientDetailsModal = ({
                 onPress={takePhoto}
                 disabled={isUploading}
               >
+                <LinearGradient
+                  colors={["#f3f4f6", "#eef2ff"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
                 <Icon name="camera-outline" size={24} color="#6366f1" />
                 <Text style={styles.uploadOptionText}>Take Photo</Text>
                 <Icon name="chevron-right" size={16} color="#6b7280" />
@@ -685,22 +769,28 @@ const styles = StyleSheet.create({
   // Main Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#0b1220",
+    borderRadius: 20,
     width: "100%",
     height: "90%",
-    elevation: 10,
+    elevation: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.15)",
+  },
+  premiumTopBar: {
+    height: 4,
+    width: "100%",
   },
 
   // Header Styles
@@ -710,7 +800,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "rgba(148, 163, 184, 0.12)",
   },
   headerContent: {
     flexDirection: "row",
@@ -723,16 +813,32 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#e5e7eb",
   },
   modalSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#94a3b8",
     marginTop: 2,
   },
   closeButton: {
     padding: 4,
+  },
+  premiumBadge: {
+    marginLeft: 8,
+  },
+  premiumBadgeBg: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1f2937",
   },
 
   // Content Styles
@@ -740,7 +846,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 8,
-    backgroundColor: "#fff",
+    backgroundColor: "transparent",
     minHeight: 200,
   },
   section: {
@@ -749,8 +855,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#e5e7eb",
     marginBottom: 12,
   },
   infoRow: {
@@ -758,7 +864,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f9fafb",
+    borderBottomColor: "rgba(148, 163, 184, 0.08)",
   },
   infoContent: {
     flex: 1,
@@ -766,16 +872,16 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#94a3b8",
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
+    fontWeight: "600",
+    color: "#e5e7eb",
   },
   linkValue: {
-    color: "#6366f1",
+    color: "#a78bfa",
   },
 
   // Avatar styles
@@ -783,9 +889,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   avatarImage: {
     width: "100%",
@@ -794,8 +902,8 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#4f46e5",
+    fontWeight: "800",
+    color: "#c7d2fe",
   },
 
   // Chips
@@ -805,8 +913,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   roleChip: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#c7d2fe",
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    borderColor: "rgba(167, 139, 250, 0.35)",
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -816,8 +924,8 @@ const styles = StyleSheet.create({
   },
   roleChipText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#4f46e5",
+    fontWeight: "700",
+    color: "#c7d2fe",
   },
 
   // Action Buttons
@@ -826,25 +934,30 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
+    borderTopColor: "rgba(148, 163, 184, 0.12)",
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "rgba(148, 163, 184, 0.12)",
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.2)",
     alignItems: "center",
   },
   secondaryButtonText: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#6b7280",
+    fontWeight: "600",
+    color: "#cbd5e1",
+  },
+  primaryButtonWrapper: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   primaryButton: {
-    flex: 1,
-    backgroundColor: "#6366f1",
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -852,7 +965,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#fff",
   },
   buttonDisabled: {
@@ -862,21 +975,29 @@ const styles = StyleSheet.create({
   // Upload Modal Styles
   uploadOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   uploadContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#0b1220",
+    borderRadius: 20,
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.15)",
+    elevation: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
   },
   uploadHeader: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: "rgba(148, 163, 184, 0.12)",
     alignItems: "center",
   },
   uploadHeaderContent: {
@@ -886,13 +1007,13 @@ const styles = StyleSheet.create({
   },
   uploadTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#e5e7eb",
     marginLeft: 12,
   },
   uploadSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#94a3b8",
     textAlign: "center",
   },
 
@@ -905,8 +1026,10 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: 200,
     height: 200,
-    borderRadius: 12,
-    backgroundColor: "#f3f4f6",
+    borderRadius: 16,
+    backgroundColor: "rgba(148, 163, 184, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.2)",
   },
   previewOverlay: {
     position: "absolute",
@@ -921,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   previewText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "700",
     color: "#059669",
     marginLeft: 6,
   },
@@ -933,17 +1056,18 @@ const styles = StyleSheet.create({
   uploadOptionButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: "transparent",
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "rgba(148, 163, 184, 0.2)",
+    overflow: "hidden",
   },
   uploadOptionText: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#e5e7eb",
     flex: 1,
     marginLeft: 12,
   },
@@ -969,10 +1093,10 @@ const styles = StyleSheet.create({
   // Upload Loading
   uploadLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 20,
   },
   uploadLoadingContent: {
     alignItems: "center",
@@ -980,13 +1104,13 @@ const styles = StyleSheet.create({
   },
   uploadLoadingText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "800",
+    color: "#e5e7eb",
     marginTop: 16,
   },
   uploadLoadingSubtext: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#94a3b8",
     textAlign: "center",
     marginTop: 8,
   },

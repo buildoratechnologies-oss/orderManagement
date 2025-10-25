@@ -4,8 +4,11 @@ import { protectedApi } from "./api/protectedApiSlice";
 import { asmApiSlice } from "./api/asmApiSlice";
 import { attendanceApiSlice } from "./api/attendanceApiSlice";
 
+import asmSliceState from "./state/asmState";
+
 export const store = configureStore({
   reducer: {
+    asmSliceState: asmSliceState,
     [doaApiSlice.reducerPath]: doaApiSlice.reducer,
     [protectedApi.reducerPath]: protectedApi.reducer,
     [asmApiSlice.reducerPath]: asmApiSlice.reducer,

@@ -26,8 +26,17 @@ export const attendanceApiSlice = createApi({
           : `UserAttendance/GetAllByUserID/${userXid ?? 20}`,
       providesTags: ["getAllAttendance"],
     }),
+    insertUserAttendanceImages: builder.mutation({
+      query: (payload) => ({
+        url: "UserAttendance/InsertUserAttendanceImages",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["getAllAttendance"],
+    }),
   }),
 });
 
 // Export hooks for usage in components
-export const { useGetAllAttendanceQuery } = attendanceApiSlice;
+export const { useGetAllAttendanceQuery, useInsertUserAttendanceImagesMutation } =
+  attendanceApiSlice;

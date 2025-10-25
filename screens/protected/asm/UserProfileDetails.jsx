@@ -8,11 +8,15 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useGetUserOverviewByIdQuery, useGetUserOverviewQuery } from "../../../redux/api/asmApiSlice";
 
 const { width } = Dimensions.get("window");
 
 export default function UserProfileDetails({ route, navigation }) {
   const { user } = route.params || {};
+  const { data: overviewById } = useGetUserOverviewByIdQuery(user?.userXid, {
+    skip: !user?.userXid,
+  });
 
   if (!user) {
     return (
@@ -98,13 +102,18 @@ export default function UserProfileDetails({ route, navigation }) {
               <View
                 style={[
                   styles.designationBadge,
-                  { backgroundColor: getDesignationColor(user.designation || user.role) + "20" },
+                  {
+                    backgroundColor:
+                      getDesignationColor(user.designation || user.role) + "20",
+                  },
                 ]}
               >
                 <Text
                   style={[
                     styles.designationText,
-                    { color: getDesignationColor(user.designation || user.role) },
+                    {
+                      color: getDesignationColor(user.designation || user.role),
+                    },
                   ]}
                 >
                   {user.designation || user.role}
@@ -116,8 +125,18 @@ export default function UserProfileDetails({ route, navigation }) {
                   { backgroundColor: getStatusColor(user.status) + "20" },
                 ]}
               >
-                <View style={[styles.statusDot, { backgroundColor: getStatusColor(user.status) }]} />
-                <Text style={[styles.statusText, { color: getStatusColor(user.status) }]}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: getStatusColor(user.status) },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: getStatusColor(user.status) },
+                  ]}
+                >
                   {user.status?.toUpperCase() || "ACTIVE"}
                 </Text>
               </View>
@@ -140,40 +159,63 @@ export default function UserProfileDetails({ route, navigation }) {
       <InfoCard title="Contact Information">
         <InfoRow icon="mail-outline" label="Email" value={user.email} />
         <InfoRow icon="call-outline" label="Phone" value={user.phone} />
-        <InfoRow icon="location-outline" label="Current Location" value={user.currentLocation || "Not available"} />
-        <InfoRow icon="time-outline" label="Last Active" value={user.lastActive || "Unknown"} />
+        <InfoRow
+          icon="location-outline"
+          label="Location Status"
+          value={
+            overviewById?.salesExecutiveLiveLocations?.isOnline
+              ? "Online"
+              : "Offline"
+          }
+          color={
+            overviewById?.salesExecutiveLiveLocations?.isOnline
+              ? "#10B981"
+              : "#EF4444"
+          }
+        />
+        <InfoRow
+          icon="time-outline"
+          label="Last Updated"
+          value={
+            overviewById?.salesExecutiveLiveLocations?.capturedAt
+              ? new Date(
+                  overviewById.salesExecutiveLiveLocations.capturedAt
+                ).toLocaleString()
+              : "Unknown"
+          }
+        />
       </InfoCard>
 
       {/* Performance Overview */}
       <InfoCard title="Performance Overview">
         <View style={styles.statsGrid}>
           <StatCard
-            title="Monthly Orders"
-            value={user.monthlyOrders || 0}
-            subtitle={`${user.totalOrders || 0} total orders`}
+            title="Total Orders"
+            value={overviewById?.salesOrders?.length || 0}
+            subtitle="Orders created"
             color="#3B82F6"
             icon="bag"
           />
           <StatCard
-            title="Attendance Rate"
-            value={`${user.attendanceRate || 0}%`}
-            subtitle="This month"
-            color="#10B981"
+            title="Attendance"
+            value={overviewById?.isPresent === 1 ? "Present" : "Absent"}
+            subtitle="Today's status"
+            color={overviewById?.isPresent === 1 ? "#10B981" : "#EF4444"}
             icon="calendar"
           />
           <StatCard
-            title="Target Achievement"
-            value={`${user.targetAchievement || 0}%`}
-            subtitle="Revenue target"
-            color={getTargetColor(user.targetAchievement || 0)}
-            icon="trophy"
+            title="Planned Visits"
+            value={overviewById?.plannedCount || 0}
+            subtitle="Scheduled today"
+            color="#F59E0B"
+            icon="map"
           />
           <StatCard
-            title="Performance Score"
-            value={`${Math.round(((user.attendanceRate || 0) + (user.targetAchievement || 0)) / 2)}%`}
-            subtitle="Overall score"
+            title="DOA Requests"
+            value={overviewById?.doaRequest?.length || 0}
+            subtitle="Total requests"
             color="#8B5CF6"
-            icon="star"
+            icon="document-text"
           />
         </View>
       </InfoCard>
@@ -181,37 +223,65 @@ export default function UserProfileDetails({ route, navigation }) {
       {/* Work Information */}
       <InfoCard title="Work Information">
         <InfoRow icon="business-outline" label="Department" value="Sales" />
-        <InfoRow icon="person-outline" label="Manager" value="Area Sales Manager" />
+        <InfoRow
+          icon="person-outline"
+          label="Manager"
+          value="Area Sales Manager"
+        />
         <InfoRow icon="calendar-outline" label="Join Date" value="Jan 2023" />
-        <InfoRow icon="briefcase-outline" label="Employee ID" value={user.userXid} />
+        <InfoRow
+          icon="briefcase-outline"
+          label="Employee ID"
+          value={user.userXid}
+        />
       </InfoCard>
 
       {/* Recent Activity */}
-      <InfoCard title="Recent Activity">
+      {/* <InfoCard title="Recent Activity">
         <View style={styles.activityList}>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#10B981" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>Completed order #ORD-2025-001</Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
+          {overviewById?.salesOrders && overviewById.salesOrders.length > 0 ? (
+            overviewById.salesOrders.slice(0, 5).map((order, index) => {
+              const orderDate = new Date(order.invoiceCreatedOn);
+              const now = new Date();
+              const diffMs = now - orderDate;
+              const diffMins = Math.floor(diffMs / 60000);
+              const diffHours = Math.floor(diffMins / 60);
+              const diffDays = Math.floor(diffHours / 24);
+
+              let timeAgo = "";
+              if (diffDays > 0) {
+                timeAgo = `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+              } else if (diffHours > 0) {
+                timeAgo = `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+              } else if (diffMins > 0) {
+                timeAgo = `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+              } else {
+                timeAgo = "Just now";
+              }
+
+              return (
+                <View key={order.pid} style={styles.activityItem}>
+                  <View
+                    style={[styles.activityDot, { backgroundColor: "#3B82F6" }]}
+                  />
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityText}>
+                      Order created for {order.clientCompanyName}
+                    </Text>
+                    <Text style={styles.activityTime}>{timeAgo}</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.activityItem}>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>No recent activity</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#3B82F6" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>Marked attendance</Text>
-              <Text style={styles.activityTime}>Today, 9:15 AM</Text>
-            </View>
-          </View>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#F59E0B" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>Submitted DOA request</Text>
-              <Text style={styles.activityTime}>Yesterday, 2:30 PM</Text>
-            </View>
-          </View>
+          )}
         </View>
-      </InfoCard>
+      </InfoCard> */}
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>

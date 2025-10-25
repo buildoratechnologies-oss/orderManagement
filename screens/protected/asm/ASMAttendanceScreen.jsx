@@ -1,111 +1,109 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
+import { useSelector } from "react-redux";
 
 export default function ASMAttendanceScreen() {
   const [attendanceData, setAttendanceData] = useState([]);
-  const [selectedMember, setSelectedMember] = useState("all");
-  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  // const [response, setResponse] = useState([]);
+  const { asmUserOverview } = useSelector((state) => state.asmSliceState);
 
   useEffect(() => {
-    fetchAttendanceData();
-    fetchTeamMembers();
-  }, []);
+    if (asmUserOverview?.userAttendances) {
+      setLoading(true);
+      processAttendanceData(asmUserOverview?.userAttendances);
+      setLoading(false);
+    }
+  }, [asmUserOverview]);
 
-  const fetchTeamMembers = async () => {
-    // Mock team members data
-    const mockMembers = [
-      { userXid: "TM001", displayname: "John Doe" },
-      { userXid: "TM002", displayname: "Jane Smith" },
-      { userXid: "TM003", displayname: "Mike Johnson" },
-      { userXid: "TM004", displayname: "Sarah Wilson" },
-      { userXid: "TM005", displayname: "David Brown" },
-    ];
-    setTeamMembers(mockMembers);
-  };
+  const processAttendanceData = (data) => {
+    const attendanceRecords = [];
 
-  const fetchAttendanceData = async () => {
-    try {
-      // Mock attendance data - replace with actual API call
-      const mockAttendanceData = [
-        {
-          id: "1",
-          userXid: "TM001",
-          displayname: "John Doe",
-          date: "2025-01-20",
-          status: "present",
-          checkInTime: "09:15 AM",
-          checkOutTime: "06:30 PM",
-          workingHours: "9h 15m",
-          location: "Downtown Area",
-        },
-        {
-          id: "2",
-          userXid: "TM002",
-          displayname: "Jane Smith",
-          date: "2025-01-20",
-          status: "present",
-          checkInTime: "08:45 AM",
-          checkOutTime: "05:45 PM",
-          workingHours: "9h 00m",
-          location: "Business District",
-        },
-        {
-          id: "3",
-          userXid: "TM003",
-          displayname: "Mike Johnson",
-          date: "2025-01-20",
+    data.forEach((user) => {
+      // Process user attendance records
+      if (user.userAttedance && user.userAttedance.length > 0) {
+        user.userAttedance.forEach((attendance) => {
+          const checkIn = attendance.checkInTime
+            ? new Date(attendance.checkInTime)
+            : null;
+          const checkOut = attendance.checkOutTime
+            ? new Date(attendance.checkOutTime)
+            : null;
+
+          // Calculate working hours
+          let workingHours = "-";
+          if (checkIn && checkOut) {
+            const diff = checkOut - checkIn;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            workingHours = `${hours}h ${minutes}m`;
+          }
+
+          // Determine status
+          let status = "present";
+          if (checkIn) {
+            const checkInHour = checkIn.getHours();
+            if (checkInHour > 9) {
+              status = "late";
+            }
+          }
+
+          // Get location from attendance logs if available
+          let location = "Office";
+          if (
+            attendance.attendanceLogs &&
+            attendance.attendanceLogs.length > 0
+          ) {
+            location = attendance.attendanceLogs[0].companyName || "Office";
+          }
+
+          attendanceRecords.push({
+            id: attendance.pid.toString(),
+            userXid: user.pid.toString(),
+            displayname: user.firstName,
+            date: checkIn ? checkIn.toLocaleDateString() : "-",
+            status: status,
+            checkInTime: checkIn
+              ? checkIn.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-",
+            checkOutTime: checkOut
+              ? checkOut.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-",
+            workingHours: workingHours,
+            location: location,
+            attendanceLogs: attendance.attendanceLogs || [],
+          });
+        });
+      } else {
+        // User with no attendance - mark as absent
+        attendanceRecords.push({
+          id: `absent-${user.pid}`,
+          userXid: user.pid.toString(),
+          displayname: user.firstName,
+          date: new Date().toLocaleDateString(),
           status: "absent",
           checkInTime: "-",
           checkOutTime: "-",
           workingHours: "0h 00m",
           location: "-",
-        },
-        {
-          id: "4",
-          userXid: "TM004",
-          displayname: "Sarah Wilson",
-          date: "2025-01-20",
-          status: "present",
-          checkInTime: "08:30 AM",
-          checkOutTime: "07:00 PM",
-          workingHours: "10h 30m",
-          location: "Central Plaza",
-        },
-        {
-          id: "5",
-          userXid: "TM005",
-          displayname: "David Brown",
-          date: "2025-01-20",
-          status: "late",
-          checkInTime: "10:30 AM",
-          checkOutTime: "06:30 PM",
-          workingHours: "8h 00m",
-          location: "Industrial Zone",
-        },
-      ];
+          attendanceLogs: [],
+        });
+      }
+    });
 
-      setAttendanceData(mockAttendanceData);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching attendance data:", error);
-      setLoading(false);
-    }
-  };
-
-  const getFilteredData = () => {
-    if (selectedMember === "all") {
-      return attendanceData;
-    }
-    return attendanceData.filter(item => item.userXid === selectedMember);
+    setAttendanceData(attendanceRecords);
   };
 
   const getStatusColor = (status) => {
@@ -134,17 +132,6 @@ export default function ASMAttendanceScreen() {
     }
   };
 
-  const MemberFilter = ({ member, active }) => (
-    <TouchableOpacity
-      style={[styles.filterChip, active && styles.filterChipActive]}
-      onPress={() => setSelectedMember(member.userXid)}
-    >
-      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-        {member.displayname}
-      </Text>
-    </TouchableOpacity>
-  );
-
   const AttendanceCard = ({ item }) => (
     <View style={styles.attendanceCard}>
       <View style={styles.cardHeader}>
@@ -152,9 +139,20 @@ export default function ASMAttendanceScreen() {
           <Text style={styles.memberName}>{item.displayname}</Text>
           <Text style={styles.memberDate}>{item.date}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + "20" }]}>
-          <Ionicons name={getStatusIcon(item.status)} size={16} color={getStatusColor(item.status)} />
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) + "20" },
+          ]}
+        >
+          <Ionicons
+            name={getStatusIcon(item.status)}
+            size={16}
+            color={getStatusColor(item.status)}
+          />
+          <Text
+            style={[styles.statusText, { color: getStatusColor(item.status) }]}
+          >
             {item.status.toUpperCase()}
           </Text>
         </View>
@@ -189,12 +187,17 @@ export default function ASMAttendanceScreen() {
   );
 
   const getAttendanceStats = () => {
-    const filtered = getFilteredData();
-    const totalRecords = filtered.length;
-    const presentCount = filtered.filter(item => item.status === "present").length;
-    const absentCount = filtered.filter(item => item.status === "absent").length;
-    const lateCount = filtered.filter(item => item.status === "late").length;
-    
+    const totalRecords = attendanceData.length;
+    const presentCount = attendanceData.filter(
+      (item) => item.status === "present"
+    ).length;
+    const absentCount = attendanceData.filter(
+      (item) => item.status === "absent"
+    ).length;
+    const lateCount = attendanceData.filter(
+      (item) => item.status === "late"
+    ).length;
+
     return { totalRecords, presentCount, absentCount, lateCount };
   };
 
@@ -210,13 +213,6 @@ export default function ASMAttendanceScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Team Attendance</Text>
-        <Text style={styles.headerSubtitle}>
-          Track team attendance and working hours
-        </Text>
-      </View>
-
       {/* Stats Summary */}
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { borderLeftColor: "#10B981" }]}>
@@ -233,33 +229,9 @@ export default function ASMAttendanceScreen() {
         </View>
       </View>
 
-      {/* Team Member Filters */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-        contentContainerStyle={styles.filtersContent}
-      >
-        <TouchableOpacity
-          style={[styles.filterChip, selectedMember === "all" && styles.filterChipActive]}
-          onPress={() => setSelectedMember("all")}
-        >
-          <Text style={[styles.filterChipText, selectedMember === "all" && styles.filterChipTextActive]}>
-            All Team
-          </Text>
-        </TouchableOpacity>
-        {teamMembers.map(member => (
-          <MemberFilter
-            key={member.userXid}
-            member={member}
-            active={selectedMember === member.userXid}
-          />
-        ))}
-      </ScrollView>
-
       {/* Attendance List */}
       <FlatList
-        data={getFilteredData()}
+        data={attendanceData}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <AttendanceCard item={item} />}
         showsVerticalScrollIndicator={false}
@@ -269,7 +241,7 @@ export default function ASMAttendanceScreen() {
             <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
             <Text style={styles.emptyTitle}>No attendance records</Text>
             <Text style={styles.emptySubtitle}>
-              No attendance data available for the selected filter
+              No attendance data available
             </Text>
           </View>
         }
@@ -282,26 +254,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
+    paddingTop:15
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    padding: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
+
   statsContainer: {
     flexDirection: "row",
     paddingHorizontal: 20,
@@ -330,34 +290,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: "#6B7280",
-  },
-  filtersContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  filtersContent: {
-    paddingRight: 20,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  filterChipActive: {
-    backgroundColor: "#3B82F6",
-    borderColor: "#3B82F6",
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  filterChipTextActive: {
-    color: "white",
   },
   listContainer: {
     paddingHorizontal: 20,

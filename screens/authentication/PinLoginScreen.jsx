@@ -50,7 +50,12 @@ export default function PinLoginScreen({ navigation }) {
         if (JSON.parse(visitCheckIn)?.details) {
           navigation.replace("Protected", { screen: "MenuPage" });
         } else if (compareDates(date, attendance)) {
+          const role=await AsyncStorage.getItem("role");
+          if(role=="Area Sales Manager"){
           navigation.replace("Protected", { screen: "AmsDashboard" });
+          }else{
+          navigation.replace("Protected", { screen: "Dashboard" });
+          }
         } else {
           let listAttendance = [];
           let redirect = () => navigation.navigate("AttendanceScreen");

@@ -22,11 +22,10 @@ export default function MyTeam({ navigation }) {
   // Transform API data to expected format
   useEffect(() => {
     if (myTeamList && Array.isArray(myTeamList)) {
-      console.log(myTeamList);
       const transformedData = myTeamList.map((member) => ({
         pid: member.pid,
         userXid:
-          member.branches?.lastEditByXid?.toString() ||
+          member.pid?.toString() ||
           `USR${member.branches?.lastEditByXid}`,
         cbXid: member.branches?.pid?.toString() || `USR${member.branches.pid}`,
         displayname: `${member.firstName} ${member.lastName}`.trim(),
@@ -133,10 +132,7 @@ export default function MyTeam({ navigation }) {
   );
 
   const TeamMemberCard = ({ member }) => (
-    <TouchableOpacity
-      style={styles.memberCard}
-      onPress={() => navigateToMemberDetail(member)}
-    >
+    <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
         <View style={styles.memberInitials}>
           <Text style={styles.initialsText}>
@@ -172,7 +168,6 @@ export default function MyTeam({ navigation }) {
             </View>
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
       </View>
 
       <View style={styles.memberDetails}>
@@ -225,8 +220,26 @@ export default function MyTeam({ navigation }) {
             • Last active: {member.lastActive}
           </Text>
         </View>
+
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.profileButton]}
+            onPress={() => navigation.navigate("UserProfileDetails", { user: member })}
+          >
+            <Ionicons name="person-outline" size={16} color="#3B82F6" />
+            <Text style={styles.profileButtonText}>Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.performanceButton]}
+            onPress={() => navigation.navigate("UserPerformance", { user: member })}
+          >
+            <Ionicons name="stats-chart-outline" size={16} color="#10B981" />
+            <Text style={styles.performanceButtonText}>Performance</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   if (isLoading) {
@@ -490,6 +503,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     marginLeft: 8,
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  profileButton: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#3B82F6",
+  },
+  profileButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3B82F6",
+  },
+  performanceButton: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#10B981",
+  },
+  performanceButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#10B981",
   },
   emptyContainer: {
     alignItems: "center",

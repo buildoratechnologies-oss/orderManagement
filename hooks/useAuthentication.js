@@ -64,6 +64,21 @@ const useAuthentication = () => {
     }
   };
 
+  // Email + Password login (endpoint name may vary on backend)
+  const handleLoginWithEmailPassword = async (payload) => {
+    try {
+      const url = GetBaseApiUrl("Accounts/Login"); // Adjust if backend uses a different route
+      const response = await axios.post(url, { ...payload }, {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (response?.data) return response.data;
+      return false;
+    } catch (error) {
+      console.error("❌ Email login error:", error);
+      throw error;
+    }
+  };
+
   const handleGetProfileData = async () => {
     try {
       const storedToken = await AsyncStorage.getItem("token");
@@ -94,6 +109,7 @@ const useAuthentication = () => {
     handleVerifyOtp,
     handleGeneratePin,
     handleGetProfileData,
+    handleLoginWithEmailPassword,
   };
 };
 

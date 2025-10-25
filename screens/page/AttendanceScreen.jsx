@@ -20,24 +20,25 @@ import { getDateAndTimeInFormate, getDateInFormate } from "../../util/data";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { jwtDecode } from "jwt-decode";
+import { useInsertUserAttendanceImagesMutation } from "../../redux/api/attendanceApiSlice";
 
 const AttendanceScreen = () => {
   // Error boundary state
   const [hasError, setHasError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Global error handler
   useEffect(() => {
     const errorHandler = (error, errorInfo) => {
-      console.error('AttendanceScreen Error:', error, errorInfo);
+      console.error("AttendanceScreen Error:", error, errorInfo);
       setHasError(true);
-      setErrorMessage(error.message || 'An unexpected error occurred');
+      setErrorMessage(error.message || "An unexpected error occurred");
     };
 
     // Set up error boundary
     const originalConsoleError = console.error;
     console.error = (...args) => {
-      if (args[0] && args[0].toString().includes('AttendanceScreen')) {
+      if (args[0] && args[0].toString().includes("AttendanceScreen")) {
         errorHandler(new Error(args[0]));
       }
       originalConsoleError(...args);
@@ -53,20 +54,33 @@ const AttendanceScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loaderWrapper}>
-          <Text style={{ fontSize: 18, color: 'red', marginBottom: 20 }}>Something went wrong</Text>
-          <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 }}>
+          <Text style={{ fontSize: 18, color: "red", marginBottom: 20 }}>
+            Something went wrong
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#666",
+              textAlign: "center",
+              marginBottom: 20,
+            }}
+          >
             {errorMessage}
           </Text>
-          <TouchableOpacity 
-            style={{ backgroundColor: '#2078a1ff', padding: 15, borderRadius: 8 }}
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#2078a1ff",
+              padding: 15,
+              borderRadius: 8,
+            }}
             onPress={() => {
               setHasError(false);
-              setErrorMessage('');
+              setErrorMessage("");
               // Restart component
               setLoading(true);
             }}
           >
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Try Again</Text>
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>Try Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -79,48 +93,114 @@ const AttendanceScreen = () => {
   const [loading, setLoading] = useState(true);
   const [locationLoading, setLocationLoading] = useState(true);
   const [userDetails, setUserDetails] = useState(null);
-
+  const [userAttendanceXid, setUserAttendanceXid] = useState(1);
+  const [imageInfo, setImageInfo] = useState(null);
+  const { handleUploadMultipleImages, isUploading } = useAttendanceApis();
   const navigation = useNavigation();
-  
+  const [insertUserAttendanceImages] = useInsertUserAttendanceImagesMutation();
+
   // Initialize hooks with error handling
   let attendanceApis;
   try {
     attendanceApis = useAttendanceApis();
   } catch (error) {
-    console.error('Error initializing attendance APIs:', error);
+    console.error("Error initializing attendance APIs:", error);
     attendanceApis = { handleAttendanceLogIn: null };
   }
-  
+
   const { handleAttendanceLogIn } = attendanceApis;
 
-  // Profile image picker with better error handling
-  const handleProfileImagePick = async () => {
+  const handleploadImageData = async (
+    info,
+    userAttendanceXid,
+    attendanceInfo
+  ) => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert(
-          "Permission Denied",
-          "Access to media library is required."
-        );
-        return;
-      }
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaType: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.5,
-      });
-      
-      if (!result?.canceled && result?.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
-      }
-    } catch (imageError) {
-      console.error('Error picking image:', imageError);
-      Alert.alert(
-        "Image Error",
-        "Failed to select image. Please try again."
-      );
+      // Second: Upload image info with check-in response
+      let res = await insertUserAttendanceImages([
+        {
+          ...info,
+          userAttendanceXid: userAttendanceXid,
+          userAttendances: { ...attendanceInfo },
+        },
+      ]);
+
+      // Third: Upload multiple images
+      await handleUploadMultipleImages([{ ...info }]);
+    } catch (error) {
+      console.log("Error:", error);
+      Alert.alert("Error", "Something went wrong during check-in or upload.");
     }
   };
+  // Profile image picker
+  const handleProfileImagePick = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: false,
+    });
+
+    if (!result.canceled) {
+      const file = result.assets[0];
+      setProfileImage(file.uri);
+
+      const fileUri = file.uri;
+      const fileName = file.fileName || fileUri.split("/").pop();
+      const fileType = file.mimeType || "image/jpeg";
+      const fileExtension = fileName?.split(".").pop() || "jpg";
+
+      // Construct fileInfo matching the expected structure
+      const fileInfo = {
+        uri: fileUri, // Required for Blob
+        typeOfDoc: "Attendance",
+        savedName: fileName,
+        originalName: fileName,
+        imagePath: fileUri,
+        docExtension: `.${fileExtension}`, // Should be like .jpg
+        mimeType: fileType, // Add explicit mimeType
+      };
+      console.log("📷 Image Info:", fileInfo);
+      setImageInfo(fileInfo);
+    }
+  };
+
+  // Upload attendance image to API
+  // const uploadAttendanceImage = async (fileInfo) => {
+  //   try {
+  //     if (!userAttendanceXid) {
+  //       console.warn("No userAttendanceXid available, skipping image upload");
+  //       return;
+  //     }
+
+  //     // Prepare payload according to API schema
+  //     const payload = [
+  //       {
+  //         userAttendanceXid,
+  //         userAttendances: {
+  //           nameEng: "string",
+  //           attendanceDate: getDateAndTimeInFormate(),
+  //           checkInTime: getDateAndTimeInFormate(),
+  //           checkOutTime: getDateAndTimeInFormate(),
+  //           attStatusXid: Number(status) || 0,
+  //           loginLatitude: location?.latitude || 0,
+  //           loginLongitude: location?.longitude || 0,
+  //           logoutLatitude: 0,
+  //           logoutLongitude: 0,
+  //         },
+  //         typeOfDoc: fileInfo.typeOfDoc,
+  //         savedName: fileInfo.savedName,
+  //         originalName: fileInfo.originalName,
+  //         imagePath: fileInfo.imagePath,
+  //         docExtension: fileInfo.docExtension,
+  //       },
+  //     ];
+
+  //     // Console log the payload instead of calling API
+  //     console.log("📤 Image Upload Payload:", JSON.stringify(payload, null, 2));
+  //   } catch (error) {
+  //     console.error("❌ Error preparing image payload:", error);
+  //   }
+  // };
 
   // Get current location
   const getCurrentLocation = async () => {
@@ -177,7 +257,7 @@ const AttendanceScreen = () => {
             setUserDetails(decoded);
           }
         } catch (tokenError) {
-          console.error('Error decoding token:', tokenError);
+          console.error("Error decoding token:", tokenError);
           // Continue without user details - don't crash the app
           setUserDetails({ displayname: "User" });
         }
@@ -200,7 +280,7 @@ const AttendanceScreen = () => {
         try {
           await getCurrentLocation();
         } catch (locationError) {
-          console.error('Error getting location during init:', locationError);
+          console.error("Error getting location during init:", locationError);
           // Don't crash the app, just continue without location
           setLocationLoading(false);
         }
@@ -215,7 +295,16 @@ const AttendanceScreen = () => {
   const handleSubmit = async () => {
     if (!status)
       return Alert.alert("Error", "Please select attendance status.");
-    
+
+    // Check if image is required for "Present" status (pid: 1)
+    const isPresentStatus = status === "1";
+    if (isPresentStatus && !profileImage) {
+      return Alert.alert(
+        "Error",
+        "Please select a profile image for Present status."
+      );
+    }
+
     // Check if location is available, but don't block submission
     if (!location?.latitude || !location?.longitude) {
       Alert.alert(
@@ -225,47 +314,54 @@ const AttendanceScreen = () => {
           {
             text: "Cancel",
             style: "cancel",
-            onPress: () => {}
+            onPress: () => {},
           },
           {
             text: "Continue",
             style: "default",
-            onPress: () => proceedWithSubmission()
-          }
+            onPress: () => proceedWithSubmission(),
+          },
         ]
       );
       return;
     }
-    
-    if (!profileImage)
-      return Alert.alert("Error", "Please select a profile image.");
 
     // If location is available, proceed normally
     await proceedWithSubmission();
   };
 
   const proceedWithSubmission = async () => {
-    if (!profileImage) {
-      Alert.alert("Error", "Please select a profile image.");
+    // Check if image is required for Present status
+    const isPresentStatus = status === "1";
+    if (isPresentStatus && !profileImage) {
+      Alert.alert("Error", "Please select a profile image for Present status.");
       return;
     }
 
     if (!handleAttendanceLogIn) {
-      Alert.alert("Error", "Attendance service is not available. Please restart the app.");
+      Alert.alert(
+        "Error",
+        "Attendance service is not available. Please restart the app."
+      );
       return;
     }
 
     try {
       setLoading(true);
-      
+
       // Find the selected status with proper validation
-      const selectedStatus = statusOptions.find((item) => item.value === status);
-      
+      const selectedStatus = statusOptions.find(
+        (item) => item.value === status
+      );
+
       if (!selectedStatus) {
-        Alert.alert("Error", "Invalid attendance status selected. Please try again.");
+        Alert.alert(
+          "Error",
+          "Invalid attendance status selected. Please try again."
+        );
         return;
       }
-      
+
       // Use location if available, otherwise use default/fallback values
       const payload = {
         nameEng: selectedStatus.label,
@@ -278,7 +374,6 @@ const AttendanceScreen = () => {
       };
 
       const response = await handleAttendanceLogIn(payload);
-      
       if (response) {
         try {
           const date = getDateInFormate();
@@ -288,20 +383,48 @@ const AttendanceScreen = () => {
             "attendanceLogPid",
             response?.details?.toString() || "0"
           );
+
+          // Store userAttendanceXid and upload image if Present status
+          if (response?.details) {
+            await handleploadImageData(imageInfo, response.details, payload);
+            setUserAttendanceXid(response.details);
+
+            // const isPresentStatus = status === "1";
+            // if (isPresentStatus && profileImage) {
+            // const fileName = profileImage.split("/").pop();
+            // const fileExtension = fileName?.split(".").pop() || "jpg";
+
+            // const fileInfo = {
+            //   typeOfDoc: "Attendance",
+            //   savedName: fileName,
+            //   originalName: fileName,
+            //   imagePath: profileImage,
+            //   docExtension: `image/${fileExtension}`,
+            // };
+
+            // await uploadAttendanceImage(fileInfo);
+            // }
+          }
         } catch (storageError) {
-          console.error('Storage error:', storageError);
+          console.error("Storage error:", storageError);
           // Don't fail the whole process for storage errors
         }
-        
+
         // Use setTimeout to avoid navigation race conditions
-        setTimeout(() => {
-          navigation.replace("Protected", { screen: "Dashboard" });
+        setTimeout(async () => {
+          // navigation.replace("Protected", { screen: "Dashboard" });
+          const role = await AsyncStorage.getItem("role");
+          if (role == "Area Sales Manager") {
+            navigation.replace("Protected", { screen: "AmsDashboard" });
+          } else {
+            navigation.replace("Protected", { screen: "Dashboard" });
+          }
         }, 100);
       } else {
         Alert.alert("Error", "Failed to submit attendance. Please try again.");
       }
     } catch (err) {
-      console.error('Submission error:', err);
+      console.error("Submission error:", err);
       Alert.alert("Error", "Failed to submit attendance. Please try again.");
     } finally {
       setLoading(false);
@@ -322,7 +445,9 @@ const AttendanceScreen = () => {
   if (!navigation) {
     return (
       <View style={styles.loaderWrapper}>
-        <Text style={{ fontSize: 16, color: 'red' }}>Navigation error. Please restart the app.</Text>
+        <Text style={{ fontSize: 16, color: "red" }}>
+          Navigation error. Please restart the app.
+        </Text>
       </View>
     );
   }
@@ -380,25 +505,6 @@ const AttendanceScreen = () => {
           )}
         </View> */}
 
-        {/* Profile */}
-        <View style={styles.profileCard}>
-          <TouchableOpacity onPress={handleProfileImagePick}>
-            <Image
-              source={
-                profileImage
-                  ? { uri: profileImage }
-                  : { uri: 'https://via.placeholder.com/110x110/cccccc/666666?text=User' }
-              }
-              style={styles.profileImage}
-              onError={(error) => {
-                console.error('Image load error:', error);
-                // Fallback to placeholder if image fails to load
-              }}
-            />
-          </TouchableOpacity>
-          <Text style={styles.name}>{userDetails?.displayname || "User"}</Text>
-        </View>
-
         {/* Status Picker */}
         <View style={styles.dropdownCard}>
           <Text style={styles.label}>Attendance Status</Text>
@@ -410,11 +516,42 @@ const AttendanceScreen = () => {
           />
         </View>
 
+        {/* Profile - Only show for Present status */}
+        {status === "1" && (
+          <View style={styles.profileCard}>
+            <TouchableOpacity onPress={handleProfileImagePick}>
+              <Image
+                source={
+                  profileImage
+                    ? { uri: profileImage }
+                    : {
+                        uri: "https://via.placeholder.com/110x110/cccccc/666666?text=Upload+Photo",
+                      }
+                }
+                style={styles.profileImage}
+                onError={(error) => {
+                  console.error("Image load error:", error);
+                  // Fallback to placeholder if image fails to load
+                }}
+              />
+            </TouchableOpacity>
+            <Text style={styles.name}>
+              {userDetails?.displayname || "User"}
+            </Text>
+            <Text style={styles.imageHint}>
+              {profileImage
+                ? "✓ Photo selected"
+                : "⚠️ Tap to upload photo (Required)"}
+            </Text>
+          </View>
+        )}
+
         {/* Location Status Info */}
         {(!location?.latitude || !location?.longitude) && (
           <View style={styles.locationWarning}>
             <Text style={styles.locationWarningText}>
-              ⚠️ Location unavailable - Attendance will be marked without location data
+              ⚠️ Location unavailable - Attendance will be marked without
+              location data
             </Text>
           </View>
         )}
@@ -442,7 +579,7 @@ const AttendanceScreen = () => {
               try {
                 navigation.replace("Protected", { screen: "Dashboard" });
               } catch (navError) {
-                console.error('Navigation error:', navError);
+                console.error("Navigation error:", navError);
                 // Fallback navigation
                 navigation.goBack();
               }
@@ -464,22 +601,79 @@ const AttendanceScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9f9f9" },
-  header: { height: 60, justifyContent: "center", alignItems: "center", elevation: 4 },
+  header: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+  },
   headerText: { color: "#fff", fontSize: 20, fontWeight: "600" },
   scroll: { padding: 20 },
   loaderWrapper: { flex: 1, justifyContent: "center", alignItems: "center" },
-  mapCard: { borderRadius: 15, overflow: "hidden", elevation: 4, marginBottom: 20, backgroundColor: "#fff" },
+  mapCard: {
+    borderRadius: 15,
+    overflow: "hidden",
+    elevation: 4,
+    marginBottom: 20,
+    backgroundColor: "#fff",
+  },
   map: { height: 200, width: "100%" },
-  mapLoading: { height: 200, justifyContent: "center", alignItems: "center", backgroundColor: "#f1f1f1", borderRadius: 12 },
-  retryButton: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: "#2078a1ff", borderRadius: 8 },
-  profileCard: { backgroundColor: "#fff", alignItems: "center", padding: 20, borderRadius: 15, elevation: 3, marginBottom: 20 },
-  profileImage: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: "#4facfe" },
+  mapLoading: {
+    height: 200,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f1f1f1",
+    borderRadius: 12,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#2078a1ff",
+    borderRadius: 8,
+  },
+  profileCard: {
+    backgroundColor: "#fff",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: 15,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 3,
+    borderColor: "#4facfe",
+  },
   name: { fontSize: 18, marginTop: 12, fontWeight: "600", color: "#333" },
-  dropdownCard: { backgroundColor: "#fff", padding: 15, borderRadius: 12, elevation: 2, marginBottom: 20 },
+  dropdownCard: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    elevation: 2,
+    marginBottom: 20,
+  },
   label: { fontSize: 14, marginBottom: 8, color: "#555", fontWeight: "500" },
-  buttonRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20, alignSelf: "center", width: "80%" },
-  buttonWrapper: { flex: 1, marginHorizontal: 8, borderRadius: 50, overflow: "hidden" },
-  submitGradient: { paddingVertical: 14, alignItems: "center", borderRadius: 50 },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 20,
+    alignSelf: "center",
+    width: "80%",
+  },
+  buttonWrapper: {
+    flex: 1,
+    marginHorizontal: 8,
+    borderRadius: 50,
+    overflow: "hidden",
+  },
+  submitGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 50,
+  },
   submitText: { color: "#fff", fontSize: 18, fontWeight: "600" },
   locationWarning: {
     backgroundColor: "#fff3cd",
@@ -499,8 +693,26 @@ const styles = StyleSheet.create({
 });
 
 const pickerSelectStyles = StyleSheet.create({
-  inputIOS: { fontSize: 16, paddingVertical: 12, paddingHorizontal: 10, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, color: "#333", backgroundColor: "#fdfdfd" },
-  inputAndroid: { fontSize: 16, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, color: "#333", backgroundColor: "#fdfdfd" },
+  inputIOS: {
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    color: "#333",
+    backgroundColor: "#fdfdfd",
+  },
+  inputAndroid: {
+    fontSize: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    color: "#333",
+    backgroundColor: "#fdfdfd",
+  },
 });
 
 export default AttendanceScreen;

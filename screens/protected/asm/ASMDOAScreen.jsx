@@ -1,94 +1,49 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSelector } from "react-redux";
 
 export default function ASMDOAScreen() {
   const [doaData, setDoaData] = useState([]);
-  const [selectedMember, setSelectedMember] = useState("all");
-  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const { asmUserOverview } = useSelector((state) => state.asmSliceState);
+
   useEffect(() => {
-    fetchDOAData();
-    fetchTeamMembers();
-  }, []);
-
-  const fetchTeamMembers = async () => {
-    const mockMembers = [
-      { userXid: "TM001", displayname: "John Doe" },
-      { userXid: "TM002", displayname: "Jane Smith" },
-      { userXid: "TM003", displayname: "Mike Johnson" },
-      { userXid: "TM004", displayname: "Sarah Wilson" },
-      { userXid: "TM005", displayname: "David Brown" },
-    ];
-    setTeamMembers(mockMembers);
-  };
-
-  const fetchDOAData = async () => {
-    try {
-      const mockDOAData = [
-        {
-          id: "1",
-          userXid: "TM001",
-          displayname: "John Doe",
-          companyName: "ABC Corp",
-          itemName: "Product A",
-          status: "approved",
-          date: "2025-01-20",
-          amount: 5000,
-        },
-        {
-          id: "2",
-          userXid: "TM002",
-          displayname: "Jane Smith",
-          companyName: "XYZ Ltd",
-          itemName: "Service B",
-          status: "pending",
-          date: "2025-01-19",
-          amount: 3000,
-        },
-        {
-          id: "3",
-          userXid: "TM004",
-          displayname: "Sarah Wilson",
-          companyName: "DEF Inc",
-          itemName: "Product C",
-          status: "rejected",
-          date: "2025-01-18",
-          amount: 2000,
-        },
-      ];
-      setDoaData(mockDOAData);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching DOA data:", error);
+    if (asmUserOverview?.doaRequests) {
+      setDoaData(asmUserOverview.doaRequests);
       setLoading(false);
     }
-  };
+  }, [asmUserOverview]);
 
-  const getFilteredData = () => {
-    if (selectedMember === "all") return doaData;
-    return doaData.filter((item) => item.userXid === selectedMember);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "approved":
+  const getStatusColor = (requestStatusXid) => {
+    switch (requestStatusXid) {
+      case 2: // Approved
         return "#10B981";
-      case "pending":
+      case 1: // Pending
         return "#F59E0B";
-      case "rejected":
+      case 3: // Rejected
         return "#EF4444";
       default:
         return "#6B7280";
     }
+  };
+
+  const getStatusText = (requestStatusXid) => {
+    switch (requestStatusXid) {
+      case 1:
+        return "PENDING";
+      case 2:
+        return "APPROVED";
+      case 3:
+        return "REJECTED";
+      default:
+        return "UNKNOWN";
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-GB");
   };
 
   if (loading) {
@@ -101,88 +56,56 @@ export default function ASMDOAScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Daily Operation Activities</Text>
-        <Text style={styles.headerSubtitle}>
-          Track team DOA requests and approvals
-        </Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-      >
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            selectedMember === "all" && styles.filterChipActive,
-          ]}
-          onPress={() => setSelectedMember("all")}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              selectedMember === "all" && styles.filterChipTextActive,
-            ]}
-          >
-            All Team
-          </Text>
-        </TouchableOpacity>
-        {teamMembers.map((member) => (
-          <TouchableOpacity
-            key={member.userXid}
-            style={[
-              styles.filterChip,
-              selectedMember === member.userXid && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedMember(member.userXid)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedMember === member.userXid &&
-                  styles.filterChipTextActive,
-              ]}
-            >
-              {member.displayname}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       <FlatList
-        data={getFilteredData()}
-        keyExtractor={(item) => item.id}
+        data={doaData}
+        keyExtractor={(item, index) =>
+          `${item.clientXid}-${item.itemXID}-${index}`
+        }
         renderItem={({ item }) => (
           <View style={styles.doaCard}>
             <View style={styles.cardHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.companyName}>{item.companyName}</Text>
-                <Text style={styles.memberName}>{item.displayname}</Text>
+                <Text style={styles.itemName}>{item.itemName}</Text>
               </View>
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: getStatusColor(item.status) + "20" },
+                  {
+                    backgroundColor:
+                      getStatusColor(item.requestStatusXid) + "20",
+                  },
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    { color: getStatusColor(item.status) },
+                    { color: getStatusColor(item.requestStatusXid) },
                   ]}
                 >
-                  {item.status.toUpperCase()}
+                  {getStatusText(item.requestStatusXid)}
                 </Text>
               </View>
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.itemName}>Item: {item.itemName}</Text>
-              <Text style={styles.amount}>
-                Amount: ₹{item.amount.toLocaleString()}
+              <Text style={styles.issueText}>
+                <Text style={styles.label}>Issue: </Text>
+                {item.reportIssue}
               </Text>
-              <Text style={styles.date}>Date: {item.date}</Text>
+              {item.remarks && (
+                <Text style={styles.remarksText}>
+                  <Text style={styles.label}>Remarks: </Text>
+                  {item.remarks}
+                </Text>
+              )}
+              <Text style={styles.date}>
+                Date: {formatDate(item.reportedDate)}
+              </Text>
+              {item.doaRequestImages && item.doaRequestImages.length > 0 && (
+                <Text style={styles.attachmentText}>
+                  📎 {item.doaRequestImages.length} attachment(s)
+                </Text>
+              )}
             </View>
           </View>
         )}
@@ -201,28 +124,7 @@ export default function ASMDOAScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { padding: 20, paddingBottom: 16 },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  headerSubtitle: { fontSize: 14, color: "#6B7280" },
-  filtersContainer: { paddingHorizontal: 20, marginBottom: 16 },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  filterChipActive: { backgroundColor: "#3B82F6", borderColor: "#3B82F6" },
-  filterChipText: { fontSize: 14, color: "#6B7280", fontWeight: "500" },
-  filterChipTextActive: { color: "white" },
-  listContainer: { paddingHorizontal: 20 },
+  listContainer: { paddingHorizontal: 20, paddingTop: 16 },
   doaCard: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -240,14 +142,27 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   statusText: { fontSize: 12, fontWeight: "600" },
   cardContent: { borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 12 },
-  itemName: { fontSize: 14, color: "#374151", marginBottom: 4 },
-  amount: {
+  itemName: { fontSize: 13, color: "#6B7280", marginTop: 2 },
+  label: { fontWeight: "600", color: "#374151" },
+  issueText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
+    color: "#374151",
+    marginBottom: 6,
+    lineHeight: 20,
   },
-  date: { fontSize: 12, color: "#6B7280" },
+  remarksText: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  date: { fontSize: 12, color: "#6B7280", marginTop: 4 },
+  attachmentText: {
+    fontSize: 12,
+    color: "#3B82F6",
+    marginTop: 6,
+    fontWeight: "500",
+  },
   emptyContainer: { alignItems: "center", paddingVertical: 64 },
   emptyTitle: {
     fontSize: 18,

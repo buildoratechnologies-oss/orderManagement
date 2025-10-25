@@ -66,6 +66,7 @@ export default function PinSetupScreen({ navigation, route }) {
         await AsyncStorage.setItem("userXid", res?.userXid?.toString());
         await AsyncStorage.setItem("CBXID", res?.branchDtls[0]?.pid?.toString());
         await AsyncStorage.setItem("clientXid", res?.clientXid?.toString());
+        await AsyncStorage.setItem("role", res?.roles?.toString());
         await AsyncStorage.setItem("companyName", res?.branchDtls[0]?.companyName?.toString());
         // await AsyncStorage.setItem("branchDtls", res?.branchDtls?.toString());
         navigation.replace("PinLogin");

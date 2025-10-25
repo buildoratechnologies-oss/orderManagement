@@ -22,6 +22,8 @@ export default function OrderListScreen({ navigation }) {
   const [statusValue, setStatusValue] = useState("All");
   const [orderListDetails, setOrderListDetails] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [groupedClients, setGroupedClients] = useState([]);
+  const [expandedClient, setExpandedClient] = useState(null);
   const [statusItems, setStatusItems] = useState([
     { label: "All", value: "All" },
     { label: "Pending", value: "Pending" },
@@ -107,6 +109,33 @@ export default function OrderListScreen({ navigation }) {
     setFilteredOrders(filtered);
   }, [orderListDetails, statusValue, selectedDate, searchQuery]);
 
+  // Build grouped view by client when filteredOrders changes
+  useEffect(() => {
+    const groups = {};
+    filteredOrders.forEach((order) => {
+      const name = order?.clientCompanyName || "Unknown Client";
+      if (!groups[name]) {
+        groups[name] = { clientName: name, count: 0, total: 0, orders: [], latestAt: 0 };
+      }
+      groups[name].count += 1;
+      const amt = Number(order?.sumOfInvoice) || 0;
+      groups[name].total += amt;
+      const ts = order?.createdOn ? new Date(order.createdOn).getTime() : 0;
+      if (ts > groups[name].latestAt) groups[name].latestAt = ts;
+      groups[name].orders.push(order);
+    });
+    const groupedArr = Object.values(groups).sort((a, b) => {
+      if (b.latestAt !== a.latestAt) return b.latestAt - a.latestAt; // newest client on top
+      if (b.count !== a.count) return b.count - a.count; // then by number of orders desc
+      return a.clientName.localeCompare(b.clientName); // finally by name asc
+    });
+    setGroupedClients(groupedArr);
+    // collapse expanded client if it no longer exists
+    if (expandedClient && !groupedArr.find((g) => g.clientName === expandedClient)) {
+      setExpandedClient(null);
+    }
+  }, [filteredOrders]);
+
   const renderOrder = ({ item, index }) => {
     const status = item?.status ?? "Pending";
     const statusStyle = getStatusStyle(status);
@@ -176,6 +205,49 @@ export default function OrderListScreen({ navigation }) {
     );
   };
 
+  const renderClientGroup = ({ item }) => {
+    const isExpanded = expandedClient === item.clientName;
+    return (
+      <View style={styles.clientGroupCardWrapper}>
+        <TouchableOpacity
+          style={styles.clientGroupCard}
+          onPress={() => setExpandedClient(isExpanded ? null : item.clientName)}
+        >
+          <View style={styles.clientGroupHeader}>
+            <View style={styles.clientNameRow}>
+              <Icon name="store" size={20} color="#6366f1" />
+              <Text style={styles.clientName}>{item.clientName}</Text>
+            </View>
+            <View style={styles.clientStats}>
+              <View style={styles.clientStatBadge}>
+                <Icon name="cart-outline" size={14} color="#2563eb" />
+                <Text style={[styles.clientStatText, { color: "#2563eb" }]}>{item.count}</Text>
+              </View>
+              <View style={[styles.clientStatBadge, { backgroundColor: "#ecfeff", borderColor: "#a5f3fc" }]}>
+                <Icon name="currency-inr" size={14} color="#0ea5e9" />
+                <Text style={[styles.clientStatText, { color: "#0ea5e9" }]}>₹{item.total.toLocaleString()}</Text>
+              </View>
+              <Icon
+                name={isExpanded ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#6b7280"
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
+        {isExpanded && (
+          <View style={styles.clientOrdersList}>
+            {item.orders.map((order, idx) => (
+              <View key={order?.pid || idx} style={styles.orderCardContainer}>
+                {renderOrder({ item: order, index: idx })}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
@@ -242,7 +314,7 @@ export default function OrderListScreen({ navigation }) {
                 setSearchQuery("");
                 setStatusValue("All");
                 setSelectedDate(null);
-                refetch()
+                refetch();
               }}
             >
               <Icon name="refresh" size={20} color="#6b7280" />
@@ -350,9 +422,9 @@ export default function OrderListScreen({ navigation }) {
         {/* Results Summary */}
         {!loading && !isLoading && (
           <View style={styles.resultsHeader}>
-            <Icon name="format-list-bulleted" size={16} color="#6b7280" />
+            <Icon name="account-group" size={16} color="#6b7280" />
             <Text style={styles.resultsText}>
-              {filteredOrders.length} of {orderListDetails.length} orders
+              {groupedClients.length} clients • {filteredOrders.length} orders
             </Text>
           </View>
         )}
@@ -377,47 +449,20 @@ export default function OrderListScreen({ navigation }) {
           </View>
         ) : (
           <FlatList
-            data={filteredOrders}
-            renderItem={renderOrder}
-            keyExtractor={(item, index) =>
-              item.id?.toString() || index.toString()
-            }
+            data={expandedClient ? groupedClients.filter((g) => g.clientName === expandedClient) : groupedClients}
+            renderItem={renderClientGroup}
+            keyExtractor={(item, index) => item.clientName + "-" + index}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
             ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
             ListEmptyComponent={() => (
               <View style={styles.modernEmptyContainer}>
                 <View style={styles.emptyCard}>
-                  <Icon
-                    name={
-                      searchQuery || selectedDate || statusValue !== "All"
-                        ? "filter-remove"
-                        : "clipboard-text-off"
-                    }
-                    size={64}
-                    color="#d1d5db"
-                  />
-                  <Text style={styles.emptyTitle}>No Orders Found</Text>
+                  <Icon name="account-off" size={64} color="#d1d5db" />
+                  <Text style={styles.emptyTitle}>No Clients Found</Text>
                   <Text style={styles.emptyDescription}>
-                    {searchQuery || selectedDate || statusValue !== "All"
-                      ? "No orders match your current filters. Try adjusting your search criteria."
-                      : "You don't have any orders yet. Orders will appear here once they are created."}
+                    Try clearing filters or searching for a different client.
                   </Text>
-                  {(searchQuery || selectedDate || statusValue !== "All") && (
-                    <TouchableOpacity
-                      style={styles.clearFiltersBtn}
-                      onPress={() => {
-                        setSearchQuery("");
-                        setStatusValue("All");
-                        setSelectedDate(null);
-                      }}
-                    >
-                      <Icon name="filter-off" size={16} color="#fff" />
-                      <Text style={styles.clearFiltersBtnText}>
-                        Clear All Filters
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
             )}
@@ -741,6 +786,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     fontWeight: "500",
+  },
+
+  // Client Group Cards
+  clientGroupCardWrapper: {
+    marginBottom: 4,
+  },
+  clientGroupCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  clientGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  clientNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+    marginRight: 12,
+  },
+  clientName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
+    flex: 1,
+  },
+  clientStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  clientStatBadge: {
+    backgroundColor: "#eef2ff",
+    borderColor: "#c7d2fe",
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  clientStatText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4f46e5",
+  },
+  clientOrdersList: {
+    marginTop: 8,
   },
 
   // Modern Order Cards

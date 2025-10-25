@@ -12,6 +12,7 @@ import {
   StatusBar,
   Linking,
   Platform,
+  Modal,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
@@ -23,7 +24,10 @@ import ClientDetailsModal from "./ClientDetailsModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { compareDates, getDateInFormate } from "../../../util/data";
 import { useNavigation } from "@react-navigation/native";
-import { useGetClientsWithPlannedQuery } from "../../../redux/api/protectedApiSlice";
+import { 
+  useGetClientsWithPlannedQuery,
+  useUpdateOutletLocationMutation 
+} from "../../../redux/api/protectedApiSlice";
 
 const DEFAULT_RADIUS_KM = 5;
 const MIN_RADIUS_KM = 1;
@@ -43,6 +47,8 @@ const ShopsList = () => {
   const [plannedVisitsData, setPlannedVisitsData] = useState([]);
   const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const [showRadiusFilter, setShowRadiusFilter] = useState(false);
+  const [updateLocationModalVisible, setUpdateLocationModalVisible] = useState(false);
+  const [selectedClientForUpdate, setSelectedClientForUpdate] = useState(null);
 
   const navigation = useNavigation();
   const {
@@ -50,6 +56,8 @@ const ShopsList = () => {
     isLoading,
     refetch,
   } = useGetClientsWithPlannedQuery();
+  
+  const [updateOutletLocation, { isLoading: isUpdatingLocation }] = useUpdateOutletLocationMutation();
 
   const requestLocation = useCallback(async () => {
     setLoading(true);
@@ -385,6 +393,54 @@ const ShopsList = () => {
     }
   };
 
+  // Handle update location button press
+  const handleUpdateLocation = (client) => {
+    if (!client.latitude || !client.longatitude) {
+      Alert.alert(
+        "Location Not Available",
+        "Location coordinates are not available for this client.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    setSelectedClientForUpdate(client);
+    setUpdateLocationModalVisible(true);
+  };
+
+  // Confirm location update
+  const confirmLocationUpdate = async () => {
+    if (!selectedClientForUpdate) return;
+
+    try {
+      const payload = {
+        pid: selectedClientForUpdate.pid,
+        latitude: selectedClientForUpdate.latitude,
+        longitude: selectedClientForUpdate.longatitude,
+      };
+
+      await updateOutletLocation(payload).unwrap();
+      
+      Alert.alert(
+        "Success",
+        "Location updated successfully!",
+        [{ text: "OK" }]
+      );
+      
+      setUpdateLocationModalVisible(false);
+      setSelectedClientForUpdate(null);
+      
+      // Refresh the list to show updated data
+      refetch();
+    } catch (error) {
+      console.error("Error updating location:", error);
+      Alert.alert(
+        "Error",
+        error?.data?.message || "Failed to update location. Please try again.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const attendance = await AsyncStorage.getItem("attendanceLog");
@@ -588,6 +644,18 @@ const ShopsList = () => {
               style={[styles.actionButtonText, styles.primaryActionButtonText]}
             >
               Location
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.updateLocationButton]}
+            onPress={() => handleUpdateLocation(item)}
+          >
+            <Icon name="map-marker-plus" size={16} color="#fff" />
+            <Text
+              style={[styles.actionButtonText, styles.primaryActionButtonText]}
+            >
+              Update
             </Text>
           </TouchableOpacity>
         </View>
@@ -810,6 +878,81 @@ const ShopsList = () => {
         latitude={userLocation?.latitude}
         longitude={userLocation?.longitude}
       />
+
+      {/* Update Location Modal */}
+      <Modal
+        visible={updateLocationModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setUpdateLocationModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.updateLocationModal}>
+            <View style={styles.modalHeader}>
+              <Icon name="map-marker-plus" size={24} color="#6366f1" />
+              <Text style={styles.modalTitle}>Update Location</Text>
+              <TouchableOpacity
+                onPress={() => setUpdateLocationModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalShopName}>
+                {selectedClientForUpdate?.companyName || "Shop"}
+              </Text>
+
+              <View style={styles.locationInfoContainer}>
+                <View style={styles.locationInfoRow}>
+                  <Icon name="latitude" size={20} color="#6366f1" />
+                  <View style={styles.locationInfoText}>
+                    <Text style={styles.locationLabel}>Latitude</Text>
+                    <Text style={styles.locationValue}>
+                      {selectedClientForUpdate?.latitude || "N/A"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.locationInfoRow}>
+                  <Icon name="longitude" size={20} color="#6366f1" />
+                  <View style={styles.locationInfoText}>
+                    <Text style={styles.locationLabel}>Longitude</Text>
+                    <Text style={styles.locationValue}>
+                      {selectedClientForUpdate?.longatitude || "N/A"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancelButton}
+                  onPress={() => setUpdateLocationModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalConfirmButton}
+                  onPress={confirmLocationUpdate}
+                  disabled={isUpdatingLocation}
+                >
+                  {isUpdatingLocation ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Icon name="check" size={18} color="#fff" />
+                  )}
+                  <Text style={styles.modalConfirmText}>
+                    {isUpdatingLocation ? "Updating..." : "Confirm Update"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1052,6 +1195,9 @@ const styles = StyleSheet.create({
   primaryActionButtonText: {
     color: "#fff",
   },
+  updateLocationButton: {
+    backgroundColor: "#10b981",
+  },
 
   // Loading Styles
   loadingContainer: {
@@ -1248,6 +1394,118 @@ const styles = StyleSheet.create({
   },
   radiusPresetTextActive: {
     color: "#fff",
+  },
+
+  // Update Location Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  updateLocationModal: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "85%",
+    maxWidth: 400,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    marginLeft: 12,
+    flex: 1,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalShopName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  locationInfoContainer: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  locationInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  locationInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  "locationInfoRow:last-child": {
+    borderBottomWidth: 0,
+  },
+  locationInfoText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  locationValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#6366f1",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalConfirmText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+    marginLeft: 6,
   },
 });
 

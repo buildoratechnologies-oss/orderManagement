@@ -1,109 +1,62 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { useSelector } from "react-redux";
 
 export default function ASMOrdersScreen() {
-  const [ordersData, setOrdersData] = useState([]);
-  const [selectedMember, setSelectedMember] = useState("all");
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [response, setResponse] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { asmUserOverview } = useSelector((state) => state.asmSliceState);
+
+  // const { data: response, isLoading, refetch } = useGetOrdersListQuery(CBXID, { skip: !CBXID });
 
   useEffect(() => {
-    fetchOrdersData();
-    fetchTeamMembers();
-  }, []);
+    if (asmUserOverview?.companyBranchInvoices) {
+      setIsLoading(true);
+      setResponse(asmUserOverview?.companyBranchInvoices);
+      setIsLoading(false);
+    }
+  }, [asmUserOverview]);
 
-  const fetchTeamMembers = async () => {
-    const mockMembers = [
-      { userXid: "TM001", displayname: "John Doe" },
-      { userXid: "TM002", displayname: "Jane Smith" },
-      { userXid: "TM003", displayname: "Mike Johnson" },
-      { userXid: "TM004", displayname: "Sarah Wilson" },
-      { userXid: "TM005", displayname: "David Brown" },
-    ];
-    setTeamMembers(mockMembers);
+  // Map status codes to readable status
+  const getOrderStatus = (transactionStatusXid, paymentStatusXid) => {
+    // Customize based on your status code mapping
+    if (transactionStatusXid === 1) return "completed";
+    if (transactionStatusXid === 2) return "pending";
+    if (transactionStatusXid === 3) return "processing";
+    if (transactionStatusXid === 4) return "cancelled";
+    return "pending";
   };
 
-  const fetchOrdersData = async () => {
-    try {
-      const mockOrdersData = [
-        {
-          id: "1",
-          userXid: "TM001",
-          displayname: "John Doe",
-          orderId: "ORD-2025-001",
-          clientName: "ABC Corporation",
-          amount: 15000,
-          status: "completed",
-          date: "2025-01-20",
-          items: 5,
-        },
-        {
-          id: "2",
-          userXid: "TM002",
-          displayname: "Jane Smith",
-          orderId: "ORD-2025-002",
-          clientName: "XYZ Industries",
-          amount: 25000,
-          status: "pending",
-          date: "2025-01-20",
-          items: 8,
-        },
-        {
-          id: "3",
-          userXid: "TM001",
-          displayname: "John Doe",
-          orderId: "ORD-2025-003",
-          clientName: "DEF Company",
-          amount: 12000,
-          status: "processing",
-          date: "2025-01-19",
-          items: 3,
-        },
-        {
-          id: "4",
-          userXid: "TM004",
-          displayname: "Sarah Wilson",
-          orderId: "ORD-2025-004",
-          clientName: "GHI Solutions",
-          amount: 30000,
-          status: "completed",
-          date: "2025-01-19",
-          items: 12,
-        },
-        {
-          id: "5",
-          userXid: "TM005",
-          displayname: "David Brown",
-          orderId: "ORD-2025-005",
-          clientName: "JKL Enterprises",
-          amount: 8000,
-          status: "cancelled",
-          date: "2025-01-18",
-          items: 2,
-        },
-      ];
+  // Transform API data to match component structure
+  const transformOrderData = (apiData) => {
+    if (!apiData) return [];
 
-      setOrdersData(mockOrdersData);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching orders data:", error);
-      setLoading(false);
-    }
+    return apiData.map((order) => ({
+      id: order.pid?.toString(),
+      userXid: order.userXid,
+      orderId: `ORD-${order.pid}`,
+      clientName: order.clientCompanyName || "N/A",
+      amount: order.sumOfInvoice || 0,
+      status: getOrderStatus(
+        order.transactionStatusXid,
+        order.paymentStatusXid
+      ),
+      date: order.purchaseOrderDate
+        ? new Date(order.purchaseOrderDate).toLocaleDateString("en-IN")
+        : "N/A",
+      dateObj: order.purchaseOrderDate
+        ? new Date(order.purchaseOrderDate)
+        : null,
+      mobileNo: order.mobileNo,
+      refID: order.refID,
+      createdOn: order.createdOn,
+    }));
   };
 
   const getFilteredData = () => {
-    if (selectedMember === "all") {
-      return ordersData;
-    }
-    return ordersData.filter(item => item.userXid === selectedMember);
+    const ordersData = transformOrderData(response);
+    return ordersData;
   };
 
   const getStatusColor = (status) => {
@@ -136,28 +89,27 @@ export default function ASMOrdersScreen() {
     }
   };
 
-  const MemberFilter = ({ member, active }) => (
-    <TouchableOpacity
-      style={[styles.filterChip, active && styles.filterChipActive]}
-      onPress={() => setSelectedMember(member.userXid)}
-    >
-      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-        {member.displayname}
-      </Text>
-    </TouchableOpacity>
-  );
-
   const OrderCard = ({ item }) => (
     <View style={styles.orderCard}>
       <View style={styles.cardHeader}>
         <View style={styles.orderInfo}>
           <Text style={styles.orderId}>{item.orderId}</Text>
-          <Text style={styles.memberName}>{item.displayname}</Text>
           <Text style={styles.clientName}>{item.clientName}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + "20" }]}>
-          <Ionicons name={getStatusIcon(item.status)} size={16} color={getStatusColor(item.status)} />
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) + "20" },
+          ]}
+        >
+          <Ionicons
+            name={getStatusIcon(item.status)}
+            size={16}
+            color={getStatusColor(item.status)}
+          />
+          <Text
+            style={[styles.statusText, { color: getStatusColor(item.status) }]}
+          >
             {item.status.toUpperCase()}
           </Text>
         </View>
@@ -168,12 +120,14 @@ export default function ASMOrdersScreen() {
           <View style={styles.detailItem}>
             <Ionicons name="cash-outline" size={16} color="#6B7280" />
             <Text style={styles.detailLabel}>Amount:</Text>
-            <Text style={styles.detailValue}>₹{item.amount.toLocaleString()}</Text>
+            <Text style={styles.detailValue}>
+              ₹{item.amount.toLocaleString()}
+            </Text>
           </View>
           <View style={styles.detailItem}>
-            <Ionicons name="list-outline" size={16} color="#6B7280" />
-            <Text style={styles.detailLabel}>Items:</Text>
-            <Text style={styles.detailValue}>{item.items}</Text>
+            <Ionicons name="call-outline" size={16} color="#6B7280" />
+            <Text style={styles.detailLabel}>Mobile:</Text>
+            <Text style={styles.detailValue}>{item.mobileNo || "N/A"}</Text>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="calendar-outline" size={16} color="#6B7280" />
@@ -188,16 +142,20 @@ export default function ASMOrdersScreen() {
   const getOrdersStats = () => {
     const filtered = getFilteredData();
     const totalOrders = filtered.length;
-    const completedCount = filtered.filter(item => item.status === "completed").length;
-    const pendingCount = filtered.filter(item => item.status === "pending").length;
+    const completedCount = filtered.filter(
+      (item) => item.status === "completed"
+    ).length;
+    const pendingCount = filtered.filter(
+      (item) => item.status === "pending"
+    ).length;
     const totalAmount = filtered.reduce((sum, item) => sum + item.amount, 0);
-    
+
     return { totalOrders, completedCount, pendingCount, totalAmount };
   };
 
   const stats = getOrdersStats();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.centerContainer}>
         <Text>Loading orders data...</Text>
@@ -207,12 +165,12 @@ export default function ASMOrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <Text style={styles.headerTitle}>Team Orders</Text>
         <Text style={styles.headerSubtitle}>
           Monitor team orders and performance
         </Text>
-      </View>
+      </View> */}
 
       {/* Stats Summary */}
       <View style={styles.statsContainer}>
@@ -229,34 +187,12 @@ export default function ASMOrdersScreen() {
           <Text style={styles.statLabel}>Pending</Text>
         </View>
         <View style={[styles.statCard, { borderLeftColor: "#8B5CF6" }]}>
-          <Text style={styles.statValue}>₹{(stats.totalAmount / 1000).toFixed(0)}K</Text>
+          <Text style={styles.statValue}>
+            ₹{(stats.totalAmount / 1000).toFixed(0)}K
+          </Text>
           <Text style={styles.statLabel}>Revenue</Text>
         </View>
       </View>
-
-      {/* Team Member Filters */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-        contentContainerStyle={styles.filtersContent}
-      >
-        <TouchableOpacity
-          style={[styles.filterChip, selectedMember === "all" && styles.filterChipActive]}
-          onPress={() => setSelectedMember("all")}
-        >
-          <Text style={[styles.filterChipText, selectedMember === "all" && styles.filterChipTextActive]}>
-            All Team
-          </Text>
-        </TouchableOpacity>
-        {teamMembers.map(member => (
-          <MemberFilter
-            key={member.userXid}
-            member={member}
-            active={selectedMember === member.userXid}
-          />
-        ))}
-      </ScrollView>
 
       {/* Orders List */}
       <FlatList
@@ -265,6 +201,14 @@ export default function ASMOrdersScreen() {
         renderItem={({ item }) => <OrderCard item={item} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+        // refreshControl={
+        //   <RefreshControl
+        //     refreshing={isLoading}
+        //     onRefresh={refetch}
+        //     colors={["#3B82F6"]}
+        //     tintColor="#3B82F6"
+        //   />
+        // }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="bag-outline" size={64} color="#D1D5DB" />
@@ -289,23 +233,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    padding: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
   statsContainer: {
     flexDirection: "row",
     paddingHorizontal: 20,
+    marginTop: 16,
     marginBottom: 16,
   },
   statCard: {
@@ -332,33 +263,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#6B7280",
   },
-  filtersContainer: {
-    paddingHorizontal: 20,
+
+  clearButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  clearButtonText: {
+    marginLeft: 6,
+    fontSize: 13,
+    color: "#EF4444",
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  calendarContainer: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    margin: 20,
+    width: "90%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
-  filtersContent: {
-    paddingRight: 20,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  filterChipActive: {
-    backgroundColor: "#3B82F6",
-    borderColor: "#3B82F6",
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  filterChipTextActive: {
-    color: "white",
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#111827",
   },
   listContainer: {
     paddingHorizontal: 20,

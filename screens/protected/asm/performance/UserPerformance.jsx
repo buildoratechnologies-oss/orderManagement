@@ -18,9 +18,8 @@ import AsmUserDOA from "./AsmUserDOA";
 const UserPerformance = () => {
   const route = useRoute();
   const { user } = route.params;
-console.log(user)
   const [activeTab, setActiveTab] = useState("Attendance");
-
+console.log(user)
   // Mock data - replace with actual API calls
   const attendanceData = [
     {
@@ -285,13 +284,13 @@ console.log(user)
       {/* Content */}
       <View style={{ flex: 1 }}>
         {activeTab === "Attendance" && (
-          <AsmUserAttendance userXid={user?.userXid} />
+          <AsmUserAttendance userXid={user?.userXid} cbxid={user?.cbXid} />
         )}
         {activeTab === "DOA" && (
-          <AsmUserDOA userXid={user?.userXid} />
+          <AsmUserDOA userXid={user?.userXid} cbxid={user?.cbXid} />
         )}
         {activeTab === "Orders" && (
-          <AsmUserOrders userXid={user?.userXid} />
+          <AsmUserOrders userXid={user?.userXid} cbxid={user?.cbXid} />
         )}
       </View>
     </SafeAreaView>

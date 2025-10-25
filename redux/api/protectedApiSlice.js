@@ -4,11 +4,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const customBaseQuery = async (args, api, extraOptions) => {
   const rawBaseQuery = fetchBaseQuery({
     baseUrl: "https://ams.calibrecue.com/api/",
-    prepareHeaders: async (headers) => {
+    prepareHeaders: async (headers, { extra, ...api }) => {
       const token = await AsyncStorage.getItem("token");
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
+      // Don't set Content-Type for FormData - let fetch set it with boundary
+      // if (args.body instanceof FormData) {
+      //   headers.delete("Content-Type");
+      //   headers.set("Content-Type", "multipart/form-data");
+      // }
       return headers;
     },
   });
@@ -80,6 +85,24 @@ export const protectedApi = createApi({
         body: newPost,
       }),
     }),
+
+    //location update
+    updateOutletLocation: builder.mutation({
+      query: (newPost) => ({
+        url: "Client/UpdateLocationCoordinates",
+        method: "PUT",
+        body: newPost,
+      }),
+      invalidatesTags: ["getClientsWithPlanned"],
+    }),
+
+    updateLocationContinue: builder.mutation({
+      query: (newPost) => ({
+        url: "SalesExecutiveLiveLocation",
+        method: "POST",
+        body: newPost,
+      }),
+    }),
   }),
 });
 
@@ -95,4 +118,8 @@ export const {
 
   //shop-apis
   useOnBordingMutation,
+
+  //location update
+  useUpdateOutletLocationMutation,
+  useUpdateLocationContinueMutation,
 } = protectedApi;

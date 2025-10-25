@@ -238,12 +238,12 @@ console.log(fileList)
       formData.append(`FileDetails[${index}].ImagePath`, file.imagePath || "");
       formData.append(`FileDetails[${index}].DocExtension`, docExtension);
       formData.append(`FileDetails[${index}].ExistingFileName`, savedName);
-      formData.append(`FileDetails[${index}].FileNameGuid`, fileNameGuid);
+      formData.append(`FileDetails[${index}].FileNameGuid`, savedName);
 
       // IMPORTANT: In React Native, append the file as { uri, name, type }
       formData.append(`FileDetails[${index}].Blob`, {
         uri,
-        name: fileNameGuid,
+        name: savedName,
         type: mimeType,
       });
     }

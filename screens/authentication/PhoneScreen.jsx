@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
   TextInput,
+  TouchableOpacity,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,10 +21,21 @@ import Card from "../../components/ui/Card";
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from "../../styles/theme";
 
 export default function PhoneScreen({ navigation }) {
-  const { handleVerifyPhoneNumber } = useAuthentication();
+  const { handleVerifyPhoneNumber, handleLoginWithEmailPassword } = useAuthentication();
+  const [loginMethod, setLoginMethod] = useState("mobile"); // 'mobile' | 'email'
+
+  // Mobile state
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+
+  // Email/password state
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [loading, setLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
@@ -39,6 +51,19 @@ export default function PhoneScreen({ navigation }) {
     if (cleanPhone.length > 10) {
       return "Phone number must be exactly 10 digits";
     }
+    return "";
+  };
+
+  const validateEmail = (value) => {
+    if (!value) return "Email is required";
+    const re = /[^@\s]+@[^@\s]+\.[^@\s]+/;
+    if (!re.test(String(value).toLowerCase())) return "Enter a valid email";
+    return "";
+  };
+
+  const validatePassword = (value) => {
+    if (!value) return "Password is required";
+    if (value.length < 6) return "Password must be at least 6 characters";
     return "";
   };
 
@@ -76,6 +101,37 @@ export default function PhoneScreen({ navigation }) {
     } catch (error) {
       console.log(error?.data);
       setPhoneError("Please enter a valid phone number");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async () => {
+    const eErr = validateEmail(email);
+    const pErr = validatePassword(password);
+    setEmailError(eErr);
+    setPasswordError(pErr);
+    if (eErr || pErr) return;
+
+    try {
+      setLoading(true);
+      setEmailError("");
+      setPasswordError("");
+
+      const res = await handleLoginWithEmailPassword({ email, password, companyXID: 0 });
+      if (res?.token) {
+        await AsyncStorage.setItem("token", res.token);
+        if (res?.companyXid) await AsyncStorage.setItem("companyXid", String(res.companyXid));
+        if (res?.userXid) await AsyncStorage.setItem("userXid", String(res.userXid));
+        if (res?.branchDtls?.[0]?.pid) await AsyncStorage.setItem("CBXID", String(res.branchDtls[0].pid));
+        if (res?.clientXid) await AsyncStorage.setItem("clientXid", String(res.clientXid));
+        if (res?.branchDtls?.[0]?.companyName) await AsyncStorage.setItem("companyName", String(res.branchDtls[0].companyName));
+        navigation.replace("Protected", { screen: "AsmDashboard" });
+      } else {
+        setPasswordError("Invalid email or password");
+      }
+    } catch (err) {
+      setPasswordError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -152,69 +208,160 @@ export default function PhoneScreen({ navigation }) {
           {/* Header Section */}
           <View style={styles.headerSection}>
             <View style={styles.iconContainer}>
-              <Ionicons name="phone-portrait" size={48} color={Colors.primary} />
+              {loginMethod === 'mobile' ? (
+                <Ionicons name="phone-portrait" size={48} color={Colors.primary} />
+              ) : (
+                <Ionicons name="mail" size={48} color={Colors.primary} />
+              )}
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
-              Enter your mobile number to continue
+              {loginMethod === 'mobile' ? 'Enter your mobile number to continue' : 'Sign in with your email and password'}
             </Text>
+          </View>
+
+          {/* Toggle Login Method */}
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={[styles.toggleButton, loginMethod === 'mobile' && styles.toggleButtonActive]}
+              onPress={() => setLoginMethod('mobile')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'mobile' && styles.toggleTextActive]}>Mobile OTP</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, loginMethod === 'email' && styles.toggleButtonActive]}
+              onPress={() => setLoginMethod('email')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>Email Login</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Form Section */}
           <View style={styles.formSection}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Mobile Number</Text>
-              <View style={[
-                styles.inputWrapper,
-                isFocused && styles.inputWrapperFocused,
-                phoneError && styles.inputWrapperError
-              ]}>
-                <View style={styles.inputIcon}>
-                  <Ionicons name="call" size={20} color={isFocused ? Colors.primary : Colors.textTertiary} />
+            {loginMethod === 'mobile' ? (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Mobile Number</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    isFocused && styles.inputWrapperFocused,
+                    phoneError && styles.inputWrapperError
+                  ]}>
+                    <View style={styles.inputIcon}>
+                      <Ionicons name="call" size={20} color={isFocused ? Colors.primary : Colors.textTertiary} />
+                    </View>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter your 10-digit mobile number"
+                      placeholderTextColor={Colors.textTertiary}
+                      value={phone}
+                      onChangeText={handlePhoneChange}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setIsFocused(false)}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      autoFocus={true}
+                    />
+                  </View>
+                  {phoneError ? (
+                    <Text style={styles.errorText}>{phoneError}</Text>
+                  ) : null}
                 </View>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your 10-digit mobile number"
-                  placeholderTextColor={Colors.textTertiary}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  autoFocus={true}
+
+                <Button
+                  title={loading ? "Verifying..." : "Continue"}
+                  onPress={handleSubmit}
+                  loading={loading}
+                  disabled={loading || !phone}
+                  variant="primary"
+                  size="large"
+                  fullWidth
+                  style={styles.submitButton}
+                  icon={!loading && <Ionicons name="arrow-forward" size={20} color={Colors.white} />}
+                  iconPosition="right"
                 />
-              </View>
-              {phoneError ? (
-                <Text style={styles.errorText}>{phoneError}</Text>
-              ) : null}
-            </View>
 
-            <Button
-              title={loading ? "Verifying..." : "Continue"}
-              onPress={handleSubmit}
-              loading={loading}
-              disabled={loading || !phone}
-              variant="primary"
-              size="large"
-              fullWidth
-              style={styles.submitButton}
-              icon={!loading && <Ionicons name="arrow-forward" size={20} color={Colors.white} />}
-              iconPosition="right"
-            />
+                <Button
+                  title={loading ? "Please wait..." : "Continue with WhatsApp"}
+                  onPress={handleWhatsAppAuth}
+                  loading={loading}
+                  disabled={loading || !phone}
+                  variant="success"
+                  size="large"
+                  fullWidth
+                  style={styles.whatsappButton}
+                  icon={!loading && <Ionicons name="logo-whatsapp" size={20} color={Colors.white} />}
+                  iconPosition="left"
+                />
+              </>
+            ) : (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    emailError && styles.inputWrapperError
+                  ]}>
+                    <View style={styles.inputIcon}>
+                      <Ionicons name="mail" size={20} color={Colors.textTertiary} />
+                    </View>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="you@example.com"
+                      placeholderTextColor={Colors.textTertiary}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      value={email}
+                      onChangeText={(t) => {
+                        setEmail(t);
+                        if (emailError) setEmailError(validateEmail(t));
+                      }}
+                    />
+                  </View>
+                  {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+                </View>
 
-            <Button
-              title={loading ? "Please wait..." : "Continue with WhatsApp"}
-              onPress={handleWhatsAppAuth}
-              loading={loading}
-              disabled={loading || !phone}
-              variant="success"
-              size="large"
-              fullWidth
-              style={styles.whatsappButton}
-              icon={!loading && <Ionicons name="logo-whatsapp" size={20} color={Colors.white} />}
-              iconPosition="left"
-            />
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    passwordError && styles.inputWrapperError
+                  ]}>
+                    <View style={styles.inputIcon}>
+                      <Ionicons name="lock-closed" size={20} color={Colors.textTertiary} />
+                    </View>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter your password"
+                      placeholderTextColor={Colors.textTertiary}
+                      secureTextEntry={!showPassword}
+                      value={password}
+                      onChangeText={(t) => {
+                        setPassword(t);
+                        if (passwordError) setPasswordError(validatePassword(t));
+                      }}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword((s) => !s)}>
+                      <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={Colors.textTertiary} />
+                    </TouchableOpacity>
+                  </View>
+                  {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+                </View>
+
+                <Button
+                  title={loading ? "Signing in..." : "Sign In"}
+                  onPress={handleEmailLogin}
+                  loading={loading}
+                  disabled={loading || !email || !password}
+                  variant="primary"
+                  size="large"
+                  fullWidth
+                  style={styles.submitButton}
+                  icon={!loading && <Ionicons name="log-in" size={20} color={Colors.white} />}
+                  iconPosition="right"
+                />
+              </>
+            )}
           </View>
 
           {/* Footer */}
@@ -272,6 +419,33 @@ const styles = StyleSheet.create({
   },
   formSection: {
     width: '100%',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.gray100,
+    borderRadius: BorderRadius.full,
+    padding: Spacing.xs,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    borderRadius: BorderRadius.full,
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.white,
+    ...Shadows.sm,
+  },
+  toggleText: {
+    ...Typography.textStyles.body1,
+    color: Colors.textSecondary,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  toggleTextActive: {
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.semiBold,
   },
   submitButton: {
     marginTop: Spacing['2xl'],

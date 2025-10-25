@@ -13,12 +13,48 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { CommonActions, useNavigation } from "@react-navigation/native";
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from "../styles/theme";
+import {
+  Colors,
+  Typography,
+  Spacing,
+  BorderRadius,
+  Shadows,
+} from "../styles/theme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
 const CenterMenu = ({ isOpen, closeSidebar }) => {
   const navigation = useNavigation();
+
+  const [menuList, setMenuList] = useState([]);
+
+  const userMenu = [
+    { icon: "home", text: "Home", screen: "Dashboard" },
+    { icon: "people", text: "Attendance", screen: "AttendanceList" },
+    { icon: "receipt", text: "Orders", screen: "OrderList" },
+    { icon: "business", text: "Clients", screen: "ClientList" },
+    { icon: "archive", text: "DOA List", screen: "DOAList" },
+  ];
+
+  const AsmMenu = [
+    { icon: "home", text: "Home", screen: "AmsDashboard" },
+    // { icon: "people", text: "Attendance", screen: "AttendanceList" },
+    { icon: "receipt", text: "Orders", screen: "ASMOrders" },
+    // { icon: "business", text: "Clients", screen: "ClientList" },
+    { icon: "archive", text: "DOA List", screen: "DOAList" },
+  ];
+
+  useEffect(() => {
+    (async () => {
+      const role = await AsyncStorage.getItem("role");
+      if (role == "Area Sales Manager") {
+        setMenuList(AsmMenu);
+      } else {
+        setMenuList(userMenu);
+      }
+    })();
+  }, []);
 
   const goToHomeAndResetHistory = () => {
     navigation.dispatch(
@@ -32,7 +68,12 @@ const CenterMenu = ({ isOpen, closeSidebar }) => {
   // Simplified without animations for now
 
   const handleNavigation = (screen) => {
+    console.log(screen)
+    if(screen=="AmsDashboard"){
+    navigation.replace("Protected", { screen: screen });
+    }else{
     navigation.navigate("Protected", { screen: screen });
+    }
     closeSidebar();
   };
 
@@ -82,7 +123,7 @@ const CenterMenu = ({ isOpen, closeSidebar }) => {
 
   return (
     <View style={styles.overlay}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.backdropTouch}
         activeOpacity={1}
         onPress={closeSidebar}
@@ -98,27 +139,21 @@ const CenterMenu = ({ isOpen, closeSidebar }) => {
               </View>
               <Text style={styles.brandText}>Order Manager</Text>
             </View>
-            
+
             <TouchableOpacity style={styles.closeBtn} onPress={closeSidebar}>
               <Ionicons name="close" size={24} color="#5F6368" />
             </TouchableOpacity>
           </View>
 
           {/* Scrollable Content */}
-          <ScrollView 
+          <ScrollView
             style={styles.scrollContainer}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* Menu Items */}
             <View style={styles.menuItems}>
-              {[
-                { icon: "home", text: "Home", screen: "Dashboard" },
-                { icon: "people", text: "Attendance", screen: "AttendanceList" },
-                { icon: "receipt", text: "Orders", screen: "OrderList" },
-                { icon: "business", text: "Clients", screen: "ClientList" },
-                { icon: "archive", text: "DOA List", screen: "DOAList" },
-              ].map((item, index) => (
+              {menuList?.map((item, index) => (
                 <TouchableOpacity
                   key={index}
                   style={styles.menuItem}
@@ -136,7 +171,10 @@ const CenterMenu = ({ isOpen, closeSidebar }) => {
 
             {/* Bottom Actions */}
             <View style={styles.bottomActions}>
-              <TouchableOpacity style={styles.exitMenuItem} onPress={handleExit}>
+              <TouchableOpacity
+                style={styles.exitMenuItem}
+                onPress={handleExit}
+              >
                 <View style={styles.exitIcon}>
                   <Ionicons name="exit" size={20} color="#E74C3C" />
                 </View>
@@ -159,7 +197,7 @@ const styles = StyleSheet.create({
     width,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 999,
   },
   backdropTouch: {
@@ -175,11 +213,11 @@ const styles = StyleSheet.create({
     minHeight: 400,
     maxHeight: height * 0.8,
     borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: '#007AFF',
-    shadowColor: '#000',
+    borderColor: "#007AFF",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -190,7 +228,7 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollContainer: {
     flex: 1,
@@ -200,39 +238,39 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
+    borderBottomColor: "#E8EAED",
   },
   brandContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   brandIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#5AC8FA20',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#5AC8FA20",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   brandText: {
     fontSize: 16,
-    color: '#202124',
-    fontWeight: '700',
+    color: "#202124",
+    fontWeight: "700",
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F3F4',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F1F3F4",
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuItems: {
     paddingVertical: 16,
@@ -245,53 +283,53 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
     borderWidth: 1,
-    borderColor: '#E8EAED',
+    borderColor: "#E8EAED",
   },
   menuItemIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#5AC8FA20',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#5AC8FA20",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   menuText: {
     fontSize: 16,
-    color: '#202124',
-    fontWeight: '500',
+    color: "#202124",
+    fontWeight: "500",
     flex: 1,
   },
   bottomActions: {
     borderTopWidth: 1,
-    borderTopColor: '#E8EAED',
+    borderTopColor: "#E8EAED",
     paddingHorizontal: 20,
     paddingVertical: 16,
     marginTop: 16,
   },
   exitMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#F1948A10',
+    backgroundColor: "#F1948A10",
   },
   exitIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1948A20',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F1948A20",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   exitText: {
     fontSize: 16,
-    color: '#E74C3C',
-    fontWeight: '600',
+    color: "#E74C3C",
+    fontWeight: "600",
   },
 });
 

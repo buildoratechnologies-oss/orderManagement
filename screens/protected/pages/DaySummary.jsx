@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   Image,
+  Modal,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useGetDaySummarryDetailsQuery } from "../../../redux/api/protectedApiSlice";
@@ -21,6 +22,11 @@ export default function DaySummary({ navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [userDetails, setUserDetails] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Logs modal state
+  const [logsModalVisible, setLogsModalVisible] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState([]);
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
   // Format date for API (assuming the API expects a specific format)
   const formatDateForAPI = (date) => {
@@ -66,6 +72,19 @@ export default function DaySummary({ navigation }) {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Handlers for logs modal
+  const openLogs = (record) => {
+    setSelectedRecord(record);
+    setSelectedLogs(Array.isArray(record?.attendanceLogs) ? record.attendanceLogs : []);
+    setLogsModalVisible(true);
+  };
+
+  const closeLogs = () => {
+    setLogsModalVisible(false);
+    setSelectedRecord(null);
+    setSelectedLogs([]);
   };
 
   const formatDisplayDate = (date) => {
@@ -133,12 +152,16 @@ export default function DaySummary({ navigation }) {
     return `${diffHours}h ${diffMinutes}m`;
   };
 
-  const AttendanceCard = ({ record }) => {
+  const AttendanceCard = ({ record, onPress }) => {
     const isCheckedOut = record.checkOutTime !== null;
     const workingHours = calculateWorkingHours(record.checkInTime, record.checkOutTime);
     
     return (
-      <View style={[styles.attendanceCard, { borderLeftColor: getStatusColor(record.remarks) }]}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onPress}
+        style={[styles.attendanceCard, { borderLeftColor: getStatusColor(record.remarks) }]}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.statusContainer}>
             <Image
@@ -205,7 +228,21 @@ export default function DaySummary({ navigation }) {
             </Text>
           </View>
         )}
-      </View>
+
+        {Array.isArray(record.attendanceLogs) && record.attendanceLogs.length > 0 && (
+          <View style={styles.cardFooter}>
+            <TouchableOpacity style={styles.viewLogsButton} onPress={onPress}>
+              <Image
+                source={{ uri: 'https://img.icons8.com/ios-glyphs/24/list.png' }}
+                style={styles.viewLogsIcon}
+              />
+              <Text style={styles.viewLogsButtonText}>
+                View Logs ({record.attendanceLogs.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -255,7 +292,11 @@ export default function DaySummary({ navigation }) {
           <Text style={styles.recordCount}>{daySummaryData.length} record{daySummaryData.length !== 1 ? 's' : ''}</Text>
         </View>
         {daySummaryData.map((record, index) => (
-          <AttendanceCard key={record.pid || index} record={record} />
+          <AttendanceCard
+            key={record.pid || index}
+            record={record}
+            onPress={() => openLogs(record)}
+          />
         ))}
       </View>
     );
@@ -310,6 +351,54 @@ export default function DaySummary({ navigation }) {
           maximumDate={new Date()}
         />
       )}
+
+      {/* Attendance Logs Modal */}
+      <Modal
+        visible={logsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeLogs}
+      >
+        <View style={styles.logsModalOverlay}>
+          <View style={styles.logsModalContainer}>
+            <View style={styles.logsModalHeader}>
+              <Text style={styles.logsModalTitle}>Visit Logs</Text>
+              <TouchableOpacity onPress={closeLogs} style={styles.logsCloseButton}>
+                <Image
+                  source={{ uri: 'https://img.icons8.com/ios-glyphs/24/macos-close.png' }}
+                  style={styles.logsCloseIcon}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.logsList}>
+              {(!selectedLogs || selectedLogs.length === 0) ? (
+                <Text style={styles.logsEmptyText}>No logs available</Text>
+              ) : (
+                selectedLogs.map((log) => (
+                  <View key={log.pid} style={styles.logItem}>
+                    <View style={styles.logHeaderRow}>
+                      <Text style={styles.logCompany}>{log.companyName || 'Unknown Client'}</Text>
+                    </View>
+                    <View style={styles.logTimes}>
+                      <Text style={styles.logTimeLabel}>In:</Text>
+                      <Text style={styles.logTimeValue}>{formatTime(log.checkInTimeLog) || '—'}</Text>
+                      <Text style={[styles.logTimeLabel, { marginLeft: 16 }]}>Out:</Text>
+                      <Text style={styles.logTimeValue}>{formatTime(log.checkOutTimeLog) || '—'}</Text>
+                    </View>
+                    {(log.atClientLoginLatitude && log.atClientLoginLongitude) && (
+                      <Text style={styles.logLatLng}>
+                        {log.atClientLoginLatitude.toFixed(4)}, {log.atClientLoginLongitude.toFixed(4)}
+                      </Text>
+                    )}
+                    <View style={styles.logsDivider} />
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -582,5 +671,124 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7f8c8d',
     flex: 1,
+  },
+
+  // Logs Modal styles
+  logsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  logsModalContainer: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  logsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  logsModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  logsCloseButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 6,
+  },
+  logsCloseIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#2c3e50',
+  },
+  logsList: {
+    maxHeight: '100%',
+  },
+  logItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  logHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logCompany: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 6,
+  },
+  logTimes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  logTimeLabel: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginRight: 4,
+  },
+  logTimeValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  logLatLng: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  logsDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginTop: 12,
+  },
+  logsEmptyText: {
+    textAlign: 'center',
+    color: '#7f8c8d',
+    padding: 20,
+  },
+
+  // Footer with View Logs button
+  cardFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  viewLogsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3498db',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  viewLogsIcon: {
+    width: 16,
+    height: 16,
+    tintColor: 'white',
+    marginRight: 6,
+  },
+  viewLogsButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

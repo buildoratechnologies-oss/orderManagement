@@ -6,39 +6,46 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  useGetAsmDashboardOverviewQuery,
+  useGetUserOverviewQuery,
+} from "../../../redux/api/asmApiSlice";
+import { useDispatch } from "react-redux";
+import { updateAsmOverView } from "../../../redux/state/asmState";
 
 const { width } = Dimensions.get("window");
 
 export default function ASMDashboard({ navigation }) {
-  const [dashboardStats, setDashboardStats] = useState({
-    totalTeamMembers: 0,
-    activeMembers: 0,
-    todayAttendance: 0,
-    monthlyOrders: 0,
-    pendingDOA: 0,
-    liveExecutives: 0,
-    targetsAchieved: 0,
-    totalTargets: 0,
-  });
+  const dispatch = useDispatch();
+  const { data: overviewData } = useGetAsmDashboardOverviewQuery();
+  const { data: overviewByIds } = useGetUserOverviewQuery();
+  const [showAllActivities, setShowAllActivities] = useState(false);
+
 
   useEffect(() => {
-    // Mock data - replace with actual API calls
-    setDashboardStats({
-      totalTeamMembers: 12,
-      activeMembers: 10,
-      todayAttendance: 8,
-      monthlyOrders: 145,
-      pendingDOA: 5,
-      liveExecutives: 6,
-      targetsAchieved: 8,
-      totalTargets: 12,
-    });
-  }, []);
+    if (overviewByIds) {
+      dispatch(updateAsmOverView(overviewByIds));
+    }
+  }, [overviewByIds]);
+  const dashboardStats = {
+    totalTeamMembers: overviewData?.myUserCount || 0,
+    activeMembers: overviewData?.myPresentUser || 0,
+    todayAttendance: overviewData?.myPresentUser || 0,
+    monthlyOrders: 0, // Not available in current API response
+    pendingDOA: 0, // Not available in current API response
+    liveExecutives: overviewData?.myLiveUser || 0,
+    targetsAchieved: 0,
+    totalTargets: 0,
+  };
 
   const StatCard = ({ title, value, subtitle, icon, color, onPress }) => (
-    <TouchableOpacity style={[styles.statCard, { borderLeftColor: color }]} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.statCard, { borderLeftColor: color }]}
+      onPress={onPress}
+    >
       <View style={styles.statCardContent}>
         <View style={styles.statCardInfo}>
           <Text style={styles.statValue}>{value}</Text>
@@ -64,9 +71,56 @@ export default function ASMDashboard({ navigation }) {
       </View>
       <Text style={styles.moduleTitle}>{title}</Text>
       <Text style={styles.moduleSubtitle}>{subtitle}</Text>
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" style={styles.moduleArrow} />
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color="#9CA3AF"
+        style={styles.moduleArrow}
+      />
     </TouchableOpacity>
   );
+
+  const renderActivityItem = (log, index) => {
+    const checkInTime = new Date(log.checkInTimeLog);
+    const now = new Date();
+    const diffMs = now - checkInTime;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    let timeAgo = "";
+    if (diffDays > 0) {
+      timeAgo = `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    } else if (diffHours > 0) {
+      timeAgo = `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    } else if (diffMins > 0) {
+      timeAgo = `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+    } else {
+      timeAgo = "Just now";
+    }
+
+    const isCheckedOut = log.atClientLogoutLatitude !== null;
+    const activityText = isCheckedOut
+      ? `Client visit completed at Client #${log.clientXid}`
+      : `Team member checked in at Client #${log.clientXid}`;
+
+    return (
+      <View key={log.pid} style={styles.activityItem}>
+        <View
+          style={[
+            styles.activityDot,
+            {
+              backgroundColor: isCheckedOut ? "#3B82F6" : "#10B981",
+            },
+          ]}
+        />
+        <View style={styles.activityContent}>
+          <Text style={styles.activityText}>{activityText}</Text>
+          <Text style={styles.activityTime}>{timeAgo}</Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -87,7 +141,10 @@ export default function ASMDashboard({ navigation }) {
         <StatCard
           title="Today's Attendance"
           value={`${dashboardStats.todayAttendance}/${dashboardStats.totalTeamMembers}`}
-          subtitle={`${Math.round((dashboardStats.todayAttendance/dashboardStats.totalTeamMembers)*100)}% present`}
+          subtitle={`${Math.round(
+            (dashboardStats.todayAttendance / dashboardStats.totalTeamMembers) *
+              100
+          )}% present`}
           icon="calendar"
           color="#10B981"
           onPress={() => navigation.navigate("ASMAttendance")}
@@ -112,7 +169,7 @@ export default function ASMDashboard({ navigation }) {
       {/* Module Navigation */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Team Management</Text>
-        
+
         <View style={styles.moduleGrid}>
           <ModuleCard
             title="My Team"
@@ -121,7 +178,7 @@ export default function ASMDashboard({ navigation }) {
             color="#3B82F6"
             onPress={() => navigation.navigate("MyTeam")}
           />
-          
+
           <ModuleCard
             title="Attendance"
             subtitle="Track team attendance"
@@ -139,7 +196,7 @@ export default function ASMDashboard({ navigation }) {
             color="#8B5CF6"
             onPress={() => navigation.navigate("ASMOrders")}
           />
-          
+
           <ModuleCard
             title="DOA"
             subtitle="Daily operation activities"
@@ -158,14 +215,14 @@ export default function ASMDashboard({ navigation }) {
             color="#F59E0B"
             onPress={() => navigation.navigate("ASMLive")}
           />
-          
-          <ModuleCard
+
+          {/* <ModuleCard
             title="Targets"
             subtitle="Team performance targets"
             icon="trophy-outline"
             color="#06B6D4"
             onPress={() => navigation.navigate("ASMTargets")}
-          />
+          /> */}
         </View>
       </View>
 
@@ -173,29 +230,58 @@ export default function ASMDashboard({ navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Recent Team Activity</Text>
         <View style={styles.activityCard}>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#10B981" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>5 team members marked attendance</Text>
-              <Text style={styles.activityTime}>30 minutes ago</Text>
+          {overviewData?.myUserAttendanceLogs &&
+          overviewData.myUserAttendanceLogs.length > 0 ? (
+            <>
+              {overviewData.myUserAttendanceLogs
+                .slice(0, 3)
+                .map((log, index) => renderActivityItem(log, index))}
+              {overviewData.myUserAttendanceLogs.length > 3 && (
+                <TouchableOpacity
+                  style={styles.seeMoreButton}
+                  onPress={() => setShowAllActivities(true)}
+                >
+                  <Text style={styles.seeMoreText}>See More</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <View style={styles.activityItem}>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>No recent activity</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#3B82F6" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>New order submitted by John Doe</Text>
-              <Text style={styles.activityTime}>1 hour ago</Text>
-            </View>
-          </View>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: "#F59E0B" }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>DOA request pending approval</Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
-            </View>
-          </View>
+          )}
         </View>
       </View>
+
+      {/* All Activities Modal */}
+      <Modal
+        visible={showAllActivities}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAllActivities(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>All Team Activities</Text>
+              <TouchableOpacity onPress={() => setShowAllActivities(false)}>
+                <Ionicons name="close" size={28} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              {overviewData?.myUserAttendanceLogs?.map((log, index) =>
+                renderActivityItem(log, index)
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -370,5 +456,46 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: 12,
     color: "#9CA3AF",
+  },
+  seeMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    color: "#3B82F6",
+    fontWeight: "600",
+    marginRight: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "80%",
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  modalScroll: {
+    paddingHorizontal: 20,
   },
 });

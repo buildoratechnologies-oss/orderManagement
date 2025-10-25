@@ -20,22 +20,37 @@ export const asmApiSlice = createApi({
   tagTypes: ["Team", "Orders"],
   endpoints: (builder) => ({
     getMyTeam: builder.query({
-      query: () => 
-        `User/GetUsersByReportingManager`,
+      query: () => `User/GetUsersByReportingManager`,
       providesTags: ["Team"],
     }),
-    
+
     getAllOrders: builder.query({
-      query: () => 
-        `Invoice/GetAllInvoices`,
+      query: () => `Invoice/GetAllInvoices`,
       providesTags: ["Orders"],
     }),
-    
-  })
+
+    getAsmDashboardOverview: builder.query({
+      query: () => `ASMDashboardReport/GetASMDashboard`,
+      providesTags: ["getAsmDashboardOverview"],
+    }),
+
+    getUserOverviewById: builder.query({
+      query: (id) => `ASMDashboardReport/GetUserOverViewByUserIDForASM/${id}`,
+      providesTags: ["getUserOverviewById"],
+    }),
+
+    getUserOverview: builder.query({
+      query: (id) => `ASMDashboardReport/GetUsersOverViewByASM`,
+      providesTags: ["getUserOverview"],
+    }),
+  }),
 });
 
 // Export hooks for usage in components
 export const {
   useGetMyTeamQuery,
-  useGetAllOrdersQuery
+  useGetAllOrdersQuery,
+  useGetAsmDashboardOverviewQuery,
+  useGetUserOverviewByIdQuery,
+  useGetUserOverviewQuery
 } = asmApiSlice;

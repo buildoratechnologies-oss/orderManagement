@@ -1,11 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   View,
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+import * as Location from "expo-location";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Navbar from "./components/NavBar";
@@ -23,8 +24,9 @@ import AttendanceList from "./screens/page/AttendanceList";
 import MenuPage from "./screens/page/checkIn/MenuPage";
 import OrderListScreen from "./screens/protected/pages/OrderList";
 import ClientList from "./screens/protected/pages/ClientsList";
-import { Provider } from "react-redux";
+import { Provider, useDispatch } from "react-redux";
 import { store } from "./redux/store";
+import { useUpdateLocationContinueMutation } from "./redux/api/protectedApiSlice";
 import DOAList from "./screens/page/checkIn/DOAList";
 import DaySummary from "./screens/protected/pages/DaySummary";
 // import BottomTabNavigation from "./components/BottomTabNavigation";
@@ -41,6 +43,75 @@ import ASMDOAScreen from "./screens/protected/asm/ASMDOAScreen";
 import AddShop from "./screens/protected/pages/AddShop";
 
 const Stack = createNativeStackNavigator();
+
+// Location tracking component
+function LocationTracker() {
+  const [updateOutletLocation] = useUpdateLocationContinueMutation();
+
+  const updateUserLocationToDb = useCallback(async () => {
+    try {
+      // Get user ID from AsyncStorage
+      const userXid = await AsyncStorage.getItem("userXid");
+      const token = await AsyncStorage.getItem("token");
+
+      // Only track if user is logged in
+      if (!userXid || !token) {
+        console.log("User not logged in, skipping location update");
+        return;
+      }
+
+      // Check location permissions
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.log("Location permission not granted");
+        return;
+      }
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      if (location?.coords) {
+        const payload = {
+          userXid: parseInt(userXid),
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy || 0,
+          isOnline: true,
+          capturedAt: new Date().toISOString(),
+          lastEditByXid: parseInt(userXid),
+        };
+
+        await updateOutletLocation(payload).unwrap();
+        console.log("User location updated successfully:", payload);
+      }
+    } catch (error) {
+      console.error("Error updating user location:", error);
+      // Silent fail - don't interrupt user experience
+    }
+  }, [updateOutletLocation]);
+
+  useEffect(() => {
+    // Initial update after a short delay
+    const initialTimeout = setTimeout(() => {
+      updateUserLocationToDb();
+    }, 3000); // Wait 3 seconds after app loads
+
+    // Set up interval for every 2 minutes (120000 ms)
+    const locationUpdateInterval = setInterval(() => {
+      updateUserLocationToDb();
+    }, 60000*5); // 2 minutes
+
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(locationUpdateInterval);
+    };
+  }, [updateUserLocationToDb]);
+
+  return null; // This component doesn't render anything
+}
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -69,6 +140,7 @@ export default function App() {
 
   return (
     <Provider store={store}>
+      <LocationTracker />
       <NavigationContainer>
         <Stack.Navigator
           initialRouteName={hasPin ? "PinLogin" : "Phone"}
